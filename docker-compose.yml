@@ -1,0 +1,135 @@
+# Token Optimizer — full stack via docker compose.
+#
+# Brings up 4 services exactly as requested:
+#   1. app      — frontend (vite) + backend (FastAPI), one container, port 8000
+#   2. db       — PostgreSQL 16 for durable storage
+#   3. ollama   — local LLM, model auto-pulled on first run (qwen2.5-coder:3b)
+#   4. cache    — Redis 7 for prompt-result caching
+#
+# Quick start:
+#     cp .env.docker.example .env.docker
+#     docker compose up --build
+#
+# Then open http://localhost:8000 for the web UI. The first start is slow
+# because Ollama is downloading the model (~2 GB for qwen2.5-coder:3b);
+# subsequent starts are fast thanks to the named volume.
+
+services:
+  # ───────────────────────────────────── App: frontend + backend
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: token-optimizer-app:latest
+    container_name: token-optimizer-app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      # Compose's service names are resolvable DNS inside the network,
+      # so we hardcode them here. The user only edits .env.docker for
+      # secrets (Tavily, Google CSE, etc.) — not infrastructure URLs.
+      OLLAMA_API_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5-coder:3b}
+      REDIS_URL: redis://cache:6379/0
+      CACHE_TYPE: redis
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-tokopt}:${POSTGRES_PASSWORD:-tokopt}@db:5432/${POSTGRES_DB:-tokopt}
+      SECRET_KEY: ${SECRET_KEY:-please-change-me-in-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Optional API keys — pass through from .env.docker if set.
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GOOGLE_CSE_ID: ${GOOGLE_CSE_ID:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+      ollama:
+        # No condition: the model pull happens in the background and can
+        # take minutes on first run. The app's startup-period healthcheck
+        # handles "ollama not ready yet" gracefully (Ollama daemon itself
+        # comes up in seconds, even if no model is loaded yet).
+        condition: service_started
+
+  # ───────────────────────────────────── Database
+  db:
+    image: postgres:16-alpine
+    container_name: token-optimizer-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tokopt}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tokopt}
+      POSTGRES_DB: ${POSTGRES_DB:-tokopt}
+    # Persist DB across container recreates. Named volume = managed by
+    # docker; survives `compose down`, removed by `compose down -v`.
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tokopt} -d ${POSTGRES_DB:-tokopt}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # Expose to host only if explicitly opted-in via .env.docker —
+    # cluster-internal access via the `db` hostname doesn't need this.
+    ports:
+      - "${DB_PORT:-5432}:5432"
+
+  # ───────────────────────────────────── Cache
+  cache:
+    image: redis:7-alpine
+    container_name: token-optimizer-cache
+    restart: unless-stopped
+    # `--save ""` disables RDB snapshots — this cache is ephemeral and
+    # losing it on restart is fine; the app re-fills on demand. Avoids
+    # the periodic disk-write spikes that Redis's default config has.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    ports:
+      - "${CACHE_PORT:-6379}:6379"
+
+  # ───────────────────────────────────── Ollama (local LLM)
+  ollama:
+    build:
+      context: .
+      dockerfile: docker/ollama/Dockerfile
+    image: token-optimizer-ollama:latest
+    container_name: token-optimizer-ollama
+    restart: unless-stopped
+    environment:
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5-coder:3b}
+    # Mount /root/.ollama so the downloaded model persists across
+    # container recreates — re-pulling a 2GB model on every restart is
+    # both slow and a great way to get rate-limited.
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    # Long start period: first run pulls the model (~2 GB). Once the
+    # named volume has the model, subsequent starts settle in seconds.
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 300s
+    # If you have an NVIDIA GPU on the host and the nvidia-container-toolkit
+    # installed, uncomment the block below for ~10× faster inference.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+volumes:
+  db-data:
+  ollama-models:

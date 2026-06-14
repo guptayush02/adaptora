@@ -1,0 +1,63 @@
+Business Source License 1.1
+
+Licensor: Ayush Gupta
+Licensed Work: Adaptora
+Change Date: June 15, 2030
+Change License: Apache License 2.0
+
+Notice
+
+The Licensed Work is provided under the terms of this Business Source License
+1.1. Until the Change Date, you may only use the Licensed Work for:
+
+1. Your own personal use and internal business purposes.
+2. Non-commercial academic, research, and educational purposes.
+3. Development, testing, and staging environments.
+4. Evaluation and demonstration on your own infrastructure.
+
+Commercial use, including but not limited to:
+- Operating a SaaS platform based on the Licensed Work
+- Offering the Licensed Work as a managed service to third parties
+- Bundling the Licensed Work into a commercial product
+- Using the Licensed Work to process data for commercial purposes
+- Any deployment of the Licensed Work that generates revenue (direct or indirect)
+
+...requires a commercial license from the Licensor.
+
+To request a commercial license, contact: guptayush02@gmail.com
+
+Automatic License Conversion
+
+On the Change Date (June 15, 2030), the Licensed Work will automatically
+convert to Apache License 2.0, at which point the above restrictions no longer
+apply.
+
+Restrictions
+
+You may:
+- Use the Licensed Work for non-commercial purposes
+- Modify the Licensed Work for personal use
+- Contribute to the project via GitHub pull requests
+- Run the Licensed Work internally within your organization
+- Deploy one instance on your own infrastructure for internal use
+
+You may not:
+- Offer the Licensed Work as a service to third parties
+- Sublicense the Licensed Work as part of a commercial product
+- Remove or alter this license notice
+- Use the Licensed Work for commercial purposes without a license
+
+Disclaimer
+
+THE LICENSED WORK IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE
+USE OR INABILITY TO USE THE LICENSED WORK.
+
+---
+
+Copyright (c) 2026 Ayush Gupta
+
+This Business Source License will convert to Apache License 2.0 on June 15, 2030.
+See https://mariadb.com/bsl11 for more information about the BUSL.
