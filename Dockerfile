@@ -17,7 +17,7 @@ WORKDIR /build
 # Install deps first so docker layer caching does the heavy lifting on
 # rebuilds where only source files (not package.json) changed.
 COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm ci --no-audit --no-fund
+RUN npm install --no-audit --no-fund
 
 # Copy the rest of the frontend source and build.
 COPY frontend/ ./
