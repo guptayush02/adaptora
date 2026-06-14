@@ -1,0 +1,7 @@
+
+# Sync scripts (dev only - don't commit to public repo)
+sync-to-public.py
+obfuscate.py
+SYNC_TO_PUBLIC.md
+SETUP_COMPLETE.md
+QUICK_SYNC.sh

@@ -17,36 +17,6 @@ A self-hosted Dynamic API Agent with an MCP (Model Context Protocol) layer on to
 
 ---
 
-## About This Release
-
-**This is the open-source public release** under BUSL-1.1. The core Python modules (`app/services/dynamic_agent_service.py`, `app/services/llm_provider.py`) are intentionally obfuscated:
-
-- ✅ All LLM prompts are base64-encoded (readable, but not immediately obvious)
-- ✅ Comments and docstrings are stripped
-- ✅ Variable names are cryptic
-- ✅ Whitespace is minimized
-
-**Why?** The code is fully open source, but we protect the intellectual property (the prompt engineering, the reasoning heuristics, the trick logic) while still allowing:
-- Full transparency for security audits
-- Community contributions (you can fork, modify, submit PRs)
-- Self-hosting with full control
-- Learning from the architecture
-
-**To understand the code deeply:**
-- Read [ARCHITECTURE.md](./ARCHITECTURE.md) for a high-level walkthrough
-- The frontend (React) is fully readable and well-commented
-- Configuration, Docker setup, and routing logic are clear
-- The obfuscation is IP protection, not a security boundary — the system works as-is
-
-**Optional:** Compile core modules to `.so` binaries (see [setup.py](./setup.py)) for even stronger code protection:
-
-```bash
-pip install cython
-python setup.py build_ext --inplace
-```
-
----
-
 ## License
 
 Adaptora is source-available under the **Business Source License 1.1** (BUSL-1.1).
