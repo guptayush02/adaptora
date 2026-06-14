@@ -1,7 +1,81 @@
 
-# Sync scripts (dev only - don't commit to public repo)
-sync-to-public.py
-obfuscate.py
-SYNC_TO_PUBLIC.md
-SETUP_COMPLETE.md
-QUICK_SYNC.sh
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Cache
+.cache/
+*.cache
+
+# Logs
+*.log
+logs/
+
+# Redis
+dump.rdb
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+
+# Tests
+.pytest_cache/
+.tox/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Frontend artifacts (see also frontend/.gitignore)
+node_modules/
+dist/
+.vite/
+*.local

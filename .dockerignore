@@ -1,0 +1,49 @@
+# Files NOT to ship into the Docker build context. Cutting these keeps
+# the image small and the build fast, and prevents accidentally baking
+# host-only state (your local .env, DBs, node_modules) into the image.
+
+# Local secrets & generated files
+.env
+.env.local
+.env.docker
+*.db
+*.db-shm
+*.db-wal
+dump.rdb
+
+# Python build artefacts
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+*.egg-info/
+
+# Virtual environments — we rebuild deps in the image
+.venv/
+venv/
+
+# Frontend artefacts (the Dockerfile builds these fresh from source;
+# shipping the host's pre-built dist/ would defeat layer caching and
+# could mix incompatible builds).
+frontend/node_modules/
+frontend/dist/
+
+# IDE / editor
+.vscode/
+.idea/
+.DS_Store
+
+# Git & CI
+.git/
+.github/
+.gitignore
+
+# Docker itself (no need to recurse on rebuild)
+Dockerfile
+docker-compose.yml
+docker/
+
+# Heavy docs that don't belong in the runtime image
+*.log
+*.bak

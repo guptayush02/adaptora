@@ -16,14 +16,15 @@ WORKDIR /build
 
 # Install deps first so docker layer caching does the heavy lifting on
 # rebuilds where only source files (not package.json) changed.
+#
+# IMPORTANT: the host's frontend/node_modules is excluded via .dockerignore,
+# so npm does a clean Linux-native install here. Without that exclusion the
+# host's macOS binaries (e.g. vite) get copied in and fail at build time.
 COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm install --no-audit --no-fund
+RUN npm ci --no-audit --no-fund
 
 # Copy the rest of the frontend source and build.
 COPY frontend/ ./
-# Vite picks up VITE_API_URL at build time; relative paths work because
-# the backend serves the SPA itself, so we can leave it unset (defaults
-# to same-origin in services/api.js).
 RUN npm run build
 
 
