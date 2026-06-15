@@ -1,5 +1,5 @@
 {
-  "name": "llm-token-optimizer-frontend",
+  "name": "adaptora-frontend",
   "version": "1.0.0",
   "private": true,
   "dependencies": {

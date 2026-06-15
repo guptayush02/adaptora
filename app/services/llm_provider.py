@@ -702,7 +702,7 @@ class LLMProvider:
                 timeout=timeout,
                 headers={
                     "User-Agent": (
-                        "Mozilla/5.0 (compatible; TokenOptimizer/1.0; "
+                        "Mozilla/5.0 (compatible; Adaptora/1.0; "
                         "+https://github.com/)"
                     ),
                     "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",

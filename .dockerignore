@@ -39,10 +39,11 @@ frontend/dist/
 .github/
 .gitignore
 
-# Docker itself (no need to recurse on rebuild)
+# Docker itself (no need to recurse on rebuild).
+# NOTE: do NOT exclude docker/ — the ollama image build COPYs
+# docker/ollama/entrypoint.sh from the build context.
 Dockerfile
 docker-compose.yml
-docker/
 
 # Heavy docs that don't belong in the runtime image
 *.log

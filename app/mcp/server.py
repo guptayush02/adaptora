@@ -425,7 +425,7 @@ def _json_block(payload: Any) -> List[TextContent]:
 def build_mcp_server() -> Server:
     """Construct (but don't start) the MCP server. Pulled out so tests
     can inspect it without running stdio."""
-    server: Server = Server("token-optimizer-dynamic-agent")
+    server: Server = Server("adaptora-dynamic-agent")
 
     @server.list_tools()
     async def handle_list_tools() -> List[Tool]:

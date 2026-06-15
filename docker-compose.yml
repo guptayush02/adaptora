@@ -20,8 +20,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: token-optimizer-app:latest
-    container_name: token-optimizer-app
+    image: adaptora-app:latest
+    container_name: adaptora-app
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8000}:8000"
@@ -58,7 +58,7 @@ services:
   # ───────────────────────────────────── Database
   db:
     image: postgres:16-alpine
-    container_name: token-optimizer-db
+    container_name: adaptora-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-tokopt}
@@ -81,7 +81,7 @@ services:
   # ───────────────────────────────────── Cache
   cache:
     image: redis:7-alpine
-    container_name: token-optimizer-cache
+    container_name: adaptora-cache
     restart: unless-stopped
     # `--save ""` disables RDB snapshots — this cache is ephemeral and
     # losing it on restart is fine; the app re-fills on demand. Avoids
@@ -100,8 +100,8 @@ services:
     build:
       context: .
       dockerfile: docker/ollama/Dockerfile
-    image: token-optimizer-ollama:latest
-    container_name: token-optimizer-ollama
+    image: adaptora-ollama:latest
+    container_name: adaptora-ollama
     restart: unless-stopped
     environment:
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5-coder:3b}

@@ -1341,7 +1341,7 @@ class DynamicAgentService:
                 resp = requests.get(
                     sitemap_url,
                     timeout=8.0,
-                    headers={"User-Agent": "TokenOptimizer/1.0"},
+                    headers={"User-Agent": "Adaptora/1.0"},
                 )
                 if resp.status_code != 200:
                     continue
@@ -1669,7 +1669,7 @@ class DynamicAgentService:
                 url,
                 timeout=8.0,
                 headers={
-                    "User-Agent": "TokenOptimizer/1.0",
+                    "User-Agent": "Adaptora/1.0",
                     "Accept": "application/json,application/yaml,text/yaml,*/*",
                 },
             )
@@ -1870,7 +1870,7 @@ class DynamicAgentService:
                 resp = requests.get(
                     url,
                     timeout=6.0,
-                    headers={"User-Agent": "TokenOptimizer/1.0"},
+                    headers={"User-Agent": "Adaptora/1.0"},
                 )
                 if resp.status_code != 200:
                     return None
@@ -2596,7 +2596,7 @@ class DynamicAgentService:
         cfg = tool.auth_config or {}
         headers: Dict[str, str] = {
             "Accept": "application/json",
-            "User-Agent": "TokenOptimizer-DynamicAgent/1.0",
+            "User-Agent": "Adaptora-DynamicAgent/1.0",
         }
         for k, v in (cfg.get("extra_headers") or {}).items():
             headers[k] = v
