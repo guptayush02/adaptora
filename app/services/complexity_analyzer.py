@@ -7,20 +7,27 @@ from app.models.schema import ComplexityAnalysis
 import requests
 
 class ComplexityAnalyzer:
+    """Analyze query complexity using Ollama"""
 
     def __init__(self):
+        """Initialize complexity analyzer"""
         self.ollama_url = settings.OLLAMA_API_URL
         self.model = settings.OLLAMA_MODEL
         self.timeout = settings.OLLAMA_TIMEOUT
 
     def analyze(self, prompt: str) -> ComplexityAnalysis:
+        """Analyze prompt complexity using local LLM"""
         try:
+            # Local heuristic analysis first
             local_score = self._local_heuristic_score(prompt)
 
+            # Get Ollama's assessment
             ollama_score = self._ollama_assessment(prompt)
 
+            # Combine scores
             final_score = (local_score + ollama_score) / 2
 
+            # Determine complexity level
             if final_score < 33:
                 level = "simple"
                 reasoning = "Query can be handled by local model"
@@ -39,6 +46,7 @@ class ComplexityAnalyzer:
             )
         except Exception as e:
             logger.error(f"Error analyzing complexity: {e}")
+            # Default to medium complexity on error
             return ComplexityAnalysis(
                 level="medium",
                 score=50.0,
@@ -47,8 +55,10 @@ class ComplexityAnalyzer:
             )
 
     def _local_heuristic_score(self, prompt: str) -> float:
+        """Local heuristic scoring (0-100)"""
         score = 0
 
+        # Length indicator
         words = len(prompt.split())
         if words < 20:
             score += 10
@@ -59,6 +69,7 @@ class ComplexityAnalyzer:
         else:
             score += 40
 
+        # Technical terms indicator
         technical_terms = [
             "algorithm",
             "optimization",
@@ -76,6 +87,7 @@ class ComplexityAnalyzer:
         )
         score += min(technical_count * 5, 30)
 
+        # Mathematical indicators
         math_indicators = [
             "calculate",
             "compute",
@@ -90,6 +102,7 @@ class ComplexityAnalyzer:
         return min(score, 100)
 
     def _ollama_assessment(self, prompt: str) -> float:
+        """Get complexity assessment from Ollama"""
         try:
             assessment_prompt = f"""Analyze the complexity of this query on a scale of 0-100:
 Query: {prompt}
@@ -111,6 +124,7 @@ Provide only a JSON response with 'complexity_score' (0-100):"""
                 result = response.json()
                 response_text = result.get("response", "")
 
+                # Extract score from response
                 try:
                     json_match = re.search(r"\{.*\}", response_text)
                     if json_match:
@@ -120,7 +134,7 @@ Provide only a JSON response with 'complexity_score' (0-100):"""
                 except json.JSONDecodeError:
                     pass
 
-            return 50
+            return 50  # Default score
         except (requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError) as e:
             logger.error(
                 f"Cannot reach Ollama at {self.ollama_url} for complexity scoring "
