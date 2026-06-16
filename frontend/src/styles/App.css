@@ -2469,6 +2469,65 @@ input[type='range']::-moz-range-thumb {
   justify-content: center;
 }
 
+.tool-card-connected {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Connect / credentials form ── */
+.tool-cred-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.tool-cred-intro {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+.tool-cred-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.tool-cred-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tool-cred-field-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.tool-cred-field input {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.9rem;
+}
+.tool-cred-field input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+.tool-cred-field-hint {
+  font-size: 0.78rem;
+  color: var(--color-text-subtle);
+}
+.tool-cred-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
 .tool-card-busy {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px var(--color-primary-soft);

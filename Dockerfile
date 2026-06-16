@@ -50,6 +50,7 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 # Backend source.
 COPY main.py ./
+COPY mcp_server.py ./
 COPY app/ ./app/
 
 # Built frontend → backend serves these via FastAPI's StaticFiles +

@@ -10,6 +10,7 @@ import {
   FiKey,
   FiCheckCircle,
   FiAlertCircle,
+  FiLink,
 } from 'react-icons/fi';
 import Modal from '../components/Modal';
 import { dynamicAgentService } from '../services/api';
@@ -112,7 +113,7 @@ function AuthBadge({ authType }) {
   return <span className="tool-badge tool-badge-neutral">{authType}</span>;
 }
 
-function ToolCard({ tool, onRefresh, onOpen, refreshing, stage }) {
+function ToolCard({ tool, onRefresh, onOpen, onConnect, refreshing, stage, connected }) {
   const initial = (tool.display_name || tool.name || '?').charAt(0).toUpperCase();
   return (
     <div className={`tool-card ${refreshing ? 'tool-card-busy' : ''}`}>
@@ -122,6 +123,11 @@ function ToolCard({ tool, onRefresh, onOpen, refreshing, stage }) {
           <div className="tool-card-name">{tool.display_name || tool.name}</div>
           <div className="tool-card-sub">{tool.base_url || '—'}</div>
         </div>
+        {connected ? (
+          <span className="tool-badge tool-badge-success tool-card-connected">
+            <FiCheckCircle /> Connected
+          </span>
+        ) : null}
       </div>
 
       {refreshing && stage ? (
@@ -164,15 +170,82 @@ function ToolCard({ tool, onRefresh, onOpen, refreshing, stage }) {
         </button>
         <button
           type="button"
-          className="btn btn-primary btn-sm"
+          className="btn btn-secondary btn-sm"
           onClick={() => onRefresh(tool.name)}
           disabled={refreshing}
         >
           <FiRefreshCw className={refreshing ? 'spin' : ''} />
-          {refreshing ? 'Refreshing…' : 'Refresh docs'}
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={() => onConnect(tool.name)}
+        >
+          <FiLink /> {connected ? 'Reconnect' : 'Connect'}
         </button>
       </div>
     </div>
+  );
+}
+
+// Shared credential-entry form, used by both the card "Connect" button and
+// the details modal. Mirrors the agent's needs_credentials flow but is
+// triggered manually from the Cached Tools page.
+function CredentialForm({ credModal, credValues, setCredValues, saving, onSubmit, onCancel }) {
+  const fields = credModal.fields || [];
+  return (
+    <form onSubmit={onSubmit} className="tool-cred-form">
+      <p className="tool-cred-intro">
+        Enter your <strong>{credModal.display_name}</strong> credentials. They’re
+        encrypted at rest and only ever sent to {credModal.display_name}.
+      </p>
+      <div className="tool-cred-meta">
+        <span className="tool-badge tool-badge-neutral">{credModal.auth_type || 'API_KEY'}</span>
+        {credModal.docs_url ? (
+          <a href={credModal.docs_url} target="_blank" rel="noreferrer" className="tool-card-link">
+            <FiExternalLink /> Where do I find these?
+          </a>
+        ) : null}
+      </div>
+
+      {fields.length === 0 ? (
+        <div className="tool-detail-empty">
+          This tool doesn’t expose any credential fields to enter here.
+        </div>
+      ) : (
+        fields.map((f) => (
+          <label key={f.name} className="tool-cred-field">
+            <span className="tool-cred-field-label">
+              {f.label || f.name}
+              {f.required ? ' *' : ''}
+            </span>
+            <input
+              type={f.type === 'password' || f.secret ? 'password' : 'text'}
+              placeholder={f.placeholder || ''}
+              value={credValues[f.name] || ''}
+              onChange={(e) =>
+                setCredValues((prev) => ({ ...prev, [f.name]: e.target.value }))
+              }
+              autoComplete="off"
+            />
+            {f.description ? (
+              <span className="tool-cred-field-hint">{f.description}</span>
+            ) : null}
+          </label>
+        ))
+      )}
+
+      <div className="tool-cred-actions">
+        <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>
+          Cancel
+        </button>
+        <button type="submit" className="btn btn-primary" disabled={saving || fields.length === 0}>
+          <FiLink className={saving ? 'spin' : ''} />
+          {saving ? 'Connecting…' : 'Save & Connect'}
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -315,6 +388,7 @@ function ToolDetails({ detail }) {
 
 function ToolsPage() {
   const [tools, setTools] = useState([]);
+  const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState({}); // {toolName: bool}
   const [query, setQuery] = useState('');
@@ -322,11 +396,20 @@ function ToolsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
 
+  // Connect / credentials modal
+  const [credModal, setCredModal] = useState(null); // {tool, display_name, auth_type, fields, docs_url}
+  const [credValues, setCredValues] = useState({});
+  const [savingCreds, setSavingCreds] = useState(false);
+
   const loadTools = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await dynamicAgentService.listTools();
+      const [data, conns] = await Promise.all([
+        dynamicAgentService.listTools(),
+        dynamicAgentService.listConnections().catch(() => []),
+      ]);
       setTools(Array.isArray(data) ? data : []);
+      setConnections(Array.isArray(conns) ? conns : []);
     } catch (err) {
       toast.error(
         err?.response?.data?.detail ||
@@ -337,6 +420,73 @@ function ToolsPage() {
       setLoading(false);
     }
   }, []);
+
+  const connectedSet = useMemo(
+    () => new Set(connections.map((c) => c.tool)),
+    [connections]
+  );
+
+  const handleConnect = useCallback(async (name) => {
+    try {
+      const t = await dynamicAgentService.getTool(name);
+      const fields = t.credential_fields || [];
+      const defaults = {};
+      fields.forEach((f) => {
+        defaults[f.name] = '';
+      });
+      setCredValues(defaults);
+      setCredModal({
+        tool: t.name,
+        display_name: t.display_name || t.name,
+        auth_type: t.auth_type,
+        fields,
+        docs_url: t.docs_url,
+      });
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.detail || err?.message || 'Failed to load tool'
+      );
+    }
+  }, []);
+
+  const handleSubmitCreds = useCallback(
+    async (e) => {
+      e?.preventDefault?.();
+      if (!credModal) return;
+      const missing = (credModal.fields || [])
+        .filter((f) => f.required && !credValues[f.name]?.trim())
+        .map((f) => f.label || f.name);
+      if (missing.length) {
+        toast.error('Required: ' + missing.join(', '));
+        return;
+      }
+      try {
+        setSavingCreds(true);
+        const sent = Object.fromEntries(
+          Object.entries(credValues).filter(([, v]) => v && v.trim())
+        );
+        const res = await dynamicAgentService.submitCredentials(
+          credModal.tool,
+          sent
+        );
+        if (res?.test_status === 'failed') {
+          toast.error('Smoke test failed: ' + (res.test_detail || ''));
+        } else {
+          toast.success(`Connected to ${res?.display_name || credModal.display_name} ✓`);
+        }
+        setCredModal(null);
+        setCredValues({});
+        await loadTools();
+      } catch (err) {
+        toast.error(
+          err?.response?.data?.detail || err?.message || 'Failed to save credentials'
+        );
+      } finally {
+        setSavingCreds(false);
+      }
+    },
+    [credModal, credValues, loadTools]
+  );
 
   useEffect(() => {
     loadTools();
@@ -499,8 +649,10 @@ function ToolsPage() {
               tool={t}
               onRefresh={handleRefresh}
               onOpen={handleOpen}
+              onConnect={handleConnect}
               refreshing={!!refreshing[t.name]}
               stage={refreshStage[t.name]}
+              connected={connectedSet.has(t.name)}
             />
           ))}
         </div>
@@ -525,6 +677,13 @@ function ToolsPage() {
             <button
               type="button"
               className="btn btn-primary"
+              onClick={() => handleConnect(detail.name)}
+            >
+              <FiLink /> {connectedSet.has(detail.name) ? 'Reconnect' : 'Connect'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
               onClick={() => handleRefresh(detail.name)}
               disabled={!!refreshing[detail.name]}
             >
@@ -542,6 +701,31 @@ function ToolsPage() {
               </a>
             ) : null}
           </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={!!credModal}
+        onClose={() => {
+          if (!savingCreds) {
+            setCredModal(null);
+            setCredValues({});
+          }
+        }}
+        title={credModal ? `Connect to ${credModal.display_name}` : 'Connect'}
+      >
+        {credModal ? (
+          <CredentialForm
+            credModal={credModal}
+            credValues={credValues}
+            setCredValues={setCredValues}
+            saving={savingCreds}
+            onSubmit={handleSubmitCreds}
+            onCancel={() => {
+              setCredModal(null);
+              setCredValues({});
+            }}
+          />
         ) : null}
       </Modal>
     </div>
