@@ -1084,7 +1084,6 @@ class DynamicAgentService:
         # On force_refresh we skip this block and go straight to web extraction
         # so the refresh always pulls fresh data from the internet.
         if is_seed and not force_refresh:
-            _emit("applying_seed", {"tool": tool_name})
             data = _SEED_TOOLS[tool_name]
             seed_endpoints = dict(data["endpoints"])
             merged_endpoints: Dict[str, Any] = dict(seed_endpoints)
@@ -1092,6 +1091,28 @@ class DynamicAgentService:
             merged_examples: Optional[List[Dict[str, Any]]] = None
             merged_docs_url: Optional[str] = data.get("docs_url")
 
+            # Cache hit: row already matches the seed exactly, so skip the
+            # write entirely. Without this check we'd UPDATE+commit this row
+            # on every single call (including the no-LLM fast path), which
+            # serializes concurrent requests against the same row and is
+            # what caused intermittent multi-second/timeout stalls under
+            # concurrent MCP calls.
+            if (
+                row
+                and row.source == "seed"
+                and row.display_name == data["display_name"]
+                and row.base_url == data["base_url"]
+                and row.auth_type == data["auth_type"]
+                and row.auth_config == data["auth_config"]
+                and row.endpoints == merged_endpoints
+                and row.rate_limits == merged_rate_limits
+                and row.examples == merged_examples
+                and row.docs_url == merged_docs_url
+            ):
+                _emit("cache_hit", {"source": "seed"})
+                return row
+
+            _emit("applying_seed", {"tool": tool_name})
             if row:
                 row.display_name = data["display_name"]
                 row.base_url = data["base_url"]
@@ -3684,6 +3705,212 @@ class DynamicAgentService:
                 if status_label == "success"
                 else None
             ),
+            http_status=http_status,
+            response_body=response_body,
+            error=error_text,
+        )
+
+    def run_endpoint_action(
+        self,
+        db: Session,
+        *,
+        user_id: int,
+        tool_name: str,
+        endpoint_name: str,
+        arguments: Optional[Dict[str, Any]] = None,
+        language: str = "en",
+    ) -> Dict[str, Any]:
+        """Fast path for MCP per-endpoint tools.
+
+        The tool AND endpoint are already known (the MCP client invoked a
+        specific ``<tool>_<endpoint>`` tool), so we skip the three LLM
+        round-trips ``run_turn`` makes — identify_tool, plan_action, and
+        summarize_for_user — and execute the HTTP call directly. There is
+        no LLM in this path at all, which is what stops the MCP server
+        from timing out on a slow local model. The calling AI assistant
+        reads the raw response and summarizes it itself."""
+        started = time.perf_counter()
+        if language not in ("en", "hinglish"):
+            language = "en"
+        arguments = dict(arguments or {})
+        pseudo_prompt = f"{tool_name}.{endpoint_name}"
+
+        # ---- docs (cached → fast)
+        tool = self.lookup_or_fetch_docs(db, tool_name)
+        if not tool:
+            return self._log_and_return(
+                db,
+                user_id=user_id,
+                language=language,
+                prompt=pseudo_prompt,
+                tool_name=tool_name,
+                thought=f"No cached docs for `{tool_name}`.",
+                action="search_docs",
+                action_input={"tool": tool_name, "status": "not_found"},
+                status="needs_tool_setup",
+                summary=(
+                    f"No docs cached for `{tool_name}`. Run setup_new_tool first."
+                ),
+                started=started,
+                final_answer=None,
+            )
+
+        ep = (tool.endpoints or {}).get(endpoint_name)
+        if not isinstance(ep, dict):
+            return self._log_and_return(
+                db,
+                user_id=user_id,
+                language=language,
+                prompt=pseudo_prompt,
+                tool_name=tool.name,
+                thought=f"Endpoint `{endpoint_name}` not in `{tool.name}` docs.",
+                action="execute_action",
+                action_input={"tool": tool.name, "endpoint": endpoint_name},
+                status="error",
+                summary=(
+                    f"`{endpoint_name}` isn't a known endpoint for `{tool.name}`. "
+                    "Refresh the tool's docs, or use run_action with a "
+                    "natural-language prompt."
+                ),
+                started=started,
+                final_answer=None,
+            )
+
+        # ---- connection / credentials
+        conn = self.load_connection(db, user_id, tool.name)
+        if not conn:
+            return self._log_and_return(
+                db,
+                user_id=user_id,
+                language=language,
+                prompt=pseudo_prompt,
+                tool_name=tool.name,
+                thought=f"No active credentials for `{tool.name}`.",
+                action="ask_user_creds",
+                action_input={
+                    "tool": tool.name,
+                    "display_name": tool.display_name,
+                    "auth_type": tool.auth_type,
+                    "credential_fields": self.required_credential_fields(tool, language),
+                    "setup_instructions": self.setup_instructions(tool, language),
+                    "docs_url": tool.docs_url,
+                    "pat_create_url": (tool.auth_config or {}).get("pat_create_url"),
+                },
+                status="needs_credentials",
+                summary=(
+                    f"To use {tool.display_name} I need your credentials "
+                    f"({tool.auth_type})."
+                ),
+                started=started,
+                final_answer=None,
+            )
+
+        # OAuth refresh probe (mirror run_turn).
+        if (
+            (tool.auth_type or "").upper() in ("OAUTH2", "OAUTH2_PKCE")
+            and conn.token_expires_at
+            and conn.token_expires_at <= datetime.utcnow() + timedelta(seconds=30)
+        ):
+            self.refresh_oauth_token(db, conn, tool)
+
+        method = (ep.get("method") or "GET").upper()
+        endpoint_path = ep.get("path") or ""
+
+        # Substitute {placeholder} path params (e.g. /repos/{owner}/{repo})
+        # from the provided arguments; consumed keys won't be re-sent as
+        # query/body params.
+        used_keys: set = set()
+
+        def _sub(match):
+            key = match.group(1)
+            if key in arguments and arguments[key] not in (None, ""):
+                used_keys.add(key)
+                return str(arguments[key])
+            return match.group(0)
+
+        endpoint_path = re.sub(r"\{([^}]+)\}", _sub, endpoint_path)
+
+        declared_params = (
+            set((ep.get("params") or {}).keys())
+            if isinstance(ep.get("params"), dict)
+            else set()
+        )
+        declared_body = (
+            set((ep.get("body") or {}).keys())
+            if isinstance(ep.get("body"), dict)
+            else set()
+        )
+
+        params: Dict[str, Any] = {}
+        body: Dict[str, Any] = {}
+        for k, v in arguments.items():
+            if k in used_keys:
+                continue
+            if k in declared_params:
+                params[k] = v
+            elif k in declared_body:
+                body[k] = v
+            elif method in ("GET", "DELETE"):
+                params[k] = v
+            else:
+                body[k] = v
+
+        # ---- execute (no LLM)
+        try:
+            http_status, response_body = self.execute_http(
+                tool=tool,
+                connection=conn,
+                method=method,
+                endpoint=endpoint_path,
+                params=params or None,
+                body=body or None,
+            )
+            error_text = (
+                None
+                if (http_status is not None and http_status < 400)
+                else (
+                    response_body
+                    if isinstance(response_body, str)
+                    else json.dumps(response_body, default=str)[:2000]
+                )
+            )
+        except DynamicAgentError as exc:
+            http_status = None
+            response_body = None
+            error_text = str(exc)
+
+        db.commit()
+        status_label = (
+            "success"
+            if (http_status is not None and http_status < 400)
+            else "error"
+        )
+        summary = (
+            f"{method} {endpoint_path} → HTTP {http_status}"
+            if http_status is not None
+            else f"{method} {endpoint_path} failed: {error_text}"
+        )
+
+        return self._log_and_return(
+            db,
+            user_id=user_id,
+            language=language,
+            prompt=pseudo_prompt,
+            tool_name=tool.name,
+            thought=(
+                f"Direct endpoint call: {method} {endpoint_path} (no LLM planning)."
+            ),
+            action="execute_action",
+            action_input={
+                "method": method,
+                "endpoint": endpoint_path,
+                "params": params or None,
+                "body": body or None,
+            },
+            status=status_label,
+            summary=summary,
+            started=started,
+            final_answer=(summary if status_label == "success" else None),
             http_status=http_status,
             response_body=response_body,
             error=error_text,

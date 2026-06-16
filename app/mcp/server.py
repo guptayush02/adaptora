@@ -641,30 +641,37 @@ async def _call_endpoint_tool(
     tool = max(known, key=len)
     endpoint = name[len(tool) + 1 :]
 
-    # We have no first-class "execute a specific endpoint with these
-    # explicit args" path on the service today — the planner-based
-    # natural-language path is the de-facto API. So build a synthetic
-    # prompt from the endpoint name + provided args + optional raw
-    # prompt, and run it through the standard turn pipeline.
+    user_id = _resolve_mcp_user_id(db)
     raw_prompt = args.pop("raw_prompt", None)
+
     if raw_prompt:
+        # The caller explicitly wants natural-language planning (e.g. to
+        # fill in fields it couldn't model). Use the full LLM pipeline.
         synthesized = (
             f"Using {tool}, perform the `{endpoint}` action. "
             f"Context: {raw_prompt}. Arguments: {json.dumps(args)}."
         )
-    else:
-        synthesized = (
-            f"Using {tool}, perform the `{endpoint}` action with "
-            f"arguments: {json.dumps(args)}."
+        result = await asyncio.to_thread(
+            dynamic_agent_service.run_turn,
+            db,
+            user_id=user_id,
+            prompt=synthesized,
+            language="en",
         )
-    user_id = _resolve_mcp_user_id(db)
-    result = await asyncio.to_thread(
-        dynamic_agent_service.run_turn,
-        db,
-        user_id=user_id,
-        prompt=synthesized,
-        language="en",
-    )
+    else:
+        # FAST PATH: tool + endpoint are already known, so skip the LLM
+        # entirely (no identify / plan / summarize). This is what keeps
+        # per-endpoint MCP calls from timing out on a slow local model.
+        result = await asyncio.to_thread(
+            dynamic_agent_service.run_endpoint_action,
+            db,
+            user_id=user_id,
+            tool_name=tool,
+            endpoint_name=endpoint,
+            arguments=args,
+            language="en",
+        )
+
     if isinstance(result, dict) and result.get("status") == "needs_credentials":
         result = dict(result)
         result["mcp_diagnostic"] = _identity_hint(db, user_id)
