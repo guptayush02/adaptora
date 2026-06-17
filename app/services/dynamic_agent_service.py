@@ -137,12 +137,15 @@ _INTEGER_MONEY_KEYS = {
 }
 
 def _coerce_integer_money_fields(obj: Any) -> Any:
-    """Recursively round decimal money fields to int. ``100.0 → 100``."""
+    """Recursively coerce money fields to int. Handles float 100.0→100 and str '1000'→1000."""
     if isinstance(obj, dict):
         out: Dict[str, Any] = {}
         for k, v in obj.items():
-            if k in _INTEGER_MONEY_KEYS and isinstance(v, float):
-                out[k] = int(round(v))
+            if k in _INTEGER_MONEY_KEYS and isinstance(v, (float, str)):
+                try:
+                    out[k] = int(round(float(v)))
+                except (ValueError, TypeError):
+                    out[k] = v
             elif isinstance(v, (dict, list)):
                 out[k] = _coerce_integer_money_fields(v)
             else:
