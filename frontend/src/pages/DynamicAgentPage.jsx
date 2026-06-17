@@ -234,6 +234,39 @@ function DynamicAgentPage() {
     refreshSidebar();
   }, []);
 
+  // Handle OAuth2 callback redirect (?oauth_success=1&tool=spotify or ?oauth_error=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthSuccess = params.get('oauth_success');
+    const oauthError = params.get('oauth_error');
+    const tool = params.get('tool');
+    if (oauthSuccess) {
+      // Clean URL without reload
+      window.history.replaceState({}, '', window.location.pathname);
+      refreshSidebar().then(() => setDrawerOpen(true));
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: tool
+            ? `✓ ${tool.charAt(0).toUpperCase() + tool.slice(1)} successfully authorized! You can now use it.`
+            : '✓ Tool successfully authorized!',
+          ts: Date.now(),
+        },
+      ]);
+    } else if (oauthError) {
+      window.history.replaceState({}, '', window.location.pathname);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `OAuth authorization failed: ${decodeURIComponent(oauthError)}. Please try again.`,
+          ts: Date.now(),
+        },
+      ]);
+    }
+  }, []);
+
   // ---------------------------------------------------------- turn
   const runTurn = async (text) => {
     const p = (text ?? prompt).trim();
