@@ -159,6 +159,7 @@ async def _progress_emitter_task(
     server: Server,
     queue: asyncio.Queue,
     progress_token: Any,
+    request_id: Any = None,
 ) -> None:
     """Drain *queue* and emit each item as an MCP progress notification.
 
@@ -187,6 +188,7 @@ async def _progress_emitter_task(
                     progress=float(step),
                     total=None,
                     message=str(msg)[:200],
+                    related_request_id=str(request_id) if request_id is not None else None,
                 )
             except Exception:
                 pass  # never let notification failure crash the main call
@@ -521,22 +523,25 @@ def build_mcp_server() -> Server:
         # the client didn't include one — notifications are skipped then
         # but the queue is still drained to avoid memory growth).
         try:
-            _meta = server.request_context.meta
+            _ctx = server.request_context
+            _meta = _ctx.meta
             progress_token = (_meta.progressToken if _meta else None)
+            request_id = _ctx.request_id
         except Exception:
             progress_token = None
+            request_id = None
         try:
             _ensure_mcp_user(db)
             if name == _META_SETUP:
-                return await _call_setup_new_tool(db, arguments, server=server, progress_token=progress_token)
+                return await _call_setup_new_tool(db, arguments, server=server, progress_token=progress_token, request_id=request_id)
             if name == _META_REFRESH:
-                return await _call_refresh(db, arguments, server=server, progress_token=progress_token)
+                return await _call_refresh(db, arguments, server=server, progress_token=progress_token, request_id=request_id)
             if name == _META_LIST_KNOWN:
                 return _call_list_known(db)
             if name == _META_LIST_CONNS:
                 return _call_list_connections(db)
             if name == _META_RUN_ACTION:
-                return await _call_run_action(db, arguments, server=server, progress_token=progress_token)
+                return await _call_run_action(db, arguments, server=server, progress_token=progress_token, request_id=request_id)
             # Dynamic per-endpoint tool: <tool>_<endpoint>
             return await _call_endpoint_tool(db, name, arguments)
         except Exception as exc:
@@ -557,6 +562,7 @@ async def _call_setup_new_tool(
     *,
     server: Optional[Server] = None,
     progress_token: Any = None,
+    request_id: Any = None,
 ) -> List[TextContent]:
     tool = (args.get("tool") or "").strip().lower()
     if not tool:
@@ -565,7 +571,7 @@ async def _call_setup_new_tool(
     loop = asyncio.get_event_loop()
     cb, queue = _make_progress_callback(server, loop) if server else (None, asyncio.Queue())
     emitter = asyncio.create_task(
-        _progress_emitter_task(server, queue, progress_token)
+        _progress_emitter_task(server, queue, progress_token, request_id=request_id)
     ) if server else None
     try:
         tool_def = await asyncio.to_thread(
@@ -617,6 +623,7 @@ async def _call_refresh(
     *,
     server: Optional[Server] = None,
     progress_token: Any = None,
+    request_id: Any = None,
 ) -> List[TextContent]:
     tool = (args.get("tool") or "").strip().lower()
     if not tool:
@@ -624,7 +631,7 @@ async def _call_refresh(
     loop = asyncio.get_event_loop()
     cb, queue = _make_progress_callback(server, loop) if server else (None, asyncio.Queue())
     emitter = asyncio.create_task(
-        _progress_emitter_task(server, queue, progress_token)
+        _progress_emitter_task(server, queue, progress_token, request_id=request_id)
     ) if server else None
     try:
         tool_def = await asyncio.to_thread(
@@ -716,6 +723,7 @@ async def _call_run_action(
     *,
     server: Optional[Server] = None,
     progress_token: Any = None,
+    request_id: Any = None,
 ) -> List[TextContent]:
     prompt = (args.get("prompt") or "").strip()
     if not prompt:
@@ -727,7 +735,7 @@ async def _call_run_action(
     loop = asyncio.get_event_loop()
     cb, queue = _make_progress_callback(server, loop) if server else (None, asyncio.Queue())
     emitter = asyncio.create_task(
-        _progress_emitter_task(server, queue, progress_token)
+        _progress_emitter_task(server, queue, progress_token, request_id=request_id)
     ) if server else None
     try:
         result = await asyncio.to_thread(
