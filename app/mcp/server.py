@@ -36,7 +36,7 @@ import asyncio
 import json
 import os
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 # Resolve the project root from this file's location and chdir to it
 # BEFORE any project imports. MCP clients (Claude Code, Claude Desktop,
@@ -130,6 +130,59 @@ def _resolve_mcp_user_id(db) -> int:
 
     MCP_USER_ID = _MCP_USER_ID_ENV
     return MCP_USER_ID
+
+def _make_progress_callback(
+    server: Server,
+    loop: asyncio.AbstractEventLoop,
+) -> tuple[Callable[[str, Dict[str, Any]], None], asyncio.Queue]:
+    """Return a (status_callback, queue) pair.
+
+    The callback is safe to call from any thread (it uses
+    call_soon_threadsafe). The queue is drained by
+    :func:`_progress_emitter_task`, which sends MCP progress notifications
+    to the connected client so the client's request timeout keeps
+    resetting while a slow operation runs.
+    """
+    q: asyncio.Queue = asyncio.Queue()
+
+    def callback(step: str, data: Optional[Dict[str, Any]] = None) -> None:
+        msg = step if not data else f"{step}: {json.dumps(data, default=str)[:120]}"
+        loop.call_soon_threadsafe(q.put_nowait, msg)
+
+    return callback, q
+
+
+async def _progress_emitter_task(
+    server: Server,
+    queue: asyncio.Queue,
+    progress_token: Any,
+) -> None:
+    """Drain *queue* and emit each item as an MCP progress notification.
+
+    Runs as a background asyncio.Task alongside the slow
+    asyncio.to_thread() call. Stops when the sentinel ``None`` is put
+    into the queue. If the client didn't supply a progressToken we still
+    drain the queue (so it doesn't grow unbounded) but skip the network
+    write.
+    """
+    step = 0
+    while True:
+        msg = await queue.get()
+        if msg is None:
+            break
+        step += 1
+        if progress_token is not None:
+            try:
+                ctx = server.request_context
+                await ctx.session.send_progress_notification(
+                    progress_token=progress_token,
+                    progress=float(step),
+                    total=None,
+                    message=str(msg)[:200],
+                )
+            except Exception:
+                pass  # never let notification failure crash the main call
+
 
 # Meta-tool names — also used as a guard in handle_call_tool to route
 # special-cased ones before falling through to the dynamic dispatcher.
@@ -445,18 +498,26 @@ def build_mcp_server() -> Server:
         through to the dynamic per-endpoint dispatch."""
         arguments = arguments or {}
         db = SessionLocal()
+        # Extract progress token from request context (may be None if
+        # the client didn't include one — notifications are skipped then
+        # but the queue is still drained to avoid memory growth).
+        try:
+            _meta = server.request_context.meta
+            progress_token = (_meta.progressToken if _meta else None)
+        except Exception:
+            progress_token = None
         try:
             _ensure_mcp_user(db)
             if name == _META_SETUP:
-                return await _call_setup_new_tool(db, arguments)
+                return await _call_setup_new_tool(db, arguments, server=server, progress_token=progress_token)
             if name == _META_REFRESH:
-                return await _call_refresh(db, arguments)
+                return await _call_refresh(db, arguments, server=server, progress_token=progress_token)
             if name == _META_LIST_KNOWN:
                 return _call_list_known(db)
             if name == _META_LIST_CONNS:
                 return _call_list_connections(db)
             if name == _META_RUN_ACTION:
-                return await _call_run_action(db, arguments)
+                return await _call_run_action(db, arguments, server=server, progress_token=progress_token)
             # Dynamic per-endpoint tool: <tool>_<endpoint>
             return await _call_endpoint_tool(db, name, arguments)
         except Exception as exc:
@@ -471,19 +532,34 @@ def build_mcp_server() -> Server:
 # ───────────────────────── tool implementations ─────────────────────────
 
 
-async def _call_setup_new_tool(db, args: Dict[str, Any]) -> List[TextContent]:
+async def _call_setup_new_tool(
+    db,
+    args: Dict[str, Any],
+    *,
+    server: Optional[Server] = None,
+    progress_token: Any = None,
+) -> List[TextContent]:
     tool = (args.get("tool") or "").strip().lower()
     if not tool:
         return _json_block({"error": "tool name is required"})
     force = bool(args.get("force_refresh", False))
-    # lookup_or_fetch_docs is synchronous; run it in a thread so we don't
-    # block the MCP event loop while it's waiting on Ollama / HTTP.
-    tool_def = await asyncio.to_thread(
-        dynamic_agent_service.lookup_or_fetch_docs,
-        db,
-        tool,
-        force_refresh=force,
-    )
+    loop = asyncio.get_event_loop()
+    cb, queue = _make_progress_callback(server, loop) if server else (None, asyncio.Queue())
+    emitter = asyncio.create_task(
+        _progress_emitter_task(server, queue, progress_token)
+    ) if server else None
+    try:
+        tool_def = await asyncio.to_thread(
+            dynamic_agent_service.lookup_or_fetch_docs,
+            db,
+            tool,
+            force_refresh=force,
+            status_callback=cb,
+        )
+    finally:
+        await queue.put(None)
+        if emitter:
+            await emitter
     if not tool_def:
         return _json_block(
             {
@@ -516,16 +592,33 @@ async def _call_setup_new_tool(db, args: Dict[str, Any]) -> List[TextContent]:
     )
 
 
-async def _call_refresh(db, args: Dict[str, Any]) -> List[TextContent]:
+async def _call_refresh(
+    db,
+    args: Dict[str, Any],
+    *,
+    server: Optional[Server] = None,
+    progress_token: Any = None,
+) -> List[TextContent]:
     tool = (args.get("tool") or "").strip().lower()
     if not tool:
         return _json_block({"error": "tool name is required"})
-    tool_def = await asyncio.to_thread(
-        dynamic_agent_service.lookup_or_fetch_docs,
-        db,
-        tool,
-        force_refresh=True,
-    )
+    loop = asyncio.get_event_loop()
+    cb, queue = _make_progress_callback(server, loop) if server else (None, asyncio.Queue())
+    emitter = asyncio.create_task(
+        _progress_emitter_task(server, queue, progress_token)
+    ) if server else None
+    try:
+        tool_def = await asyncio.to_thread(
+            dynamic_agent_service.lookup_or_fetch_docs,
+            db,
+            tool,
+            force_refresh=True,
+            status_callback=cb,
+        )
+    finally:
+        await queue.put(None)
+        if emitter:
+            await emitter
     if not tool_def:
         return _json_block({"error": f"refresh failed for `{tool}`"})
     return _json_block(
@@ -598,7 +691,13 @@ def _call_list_connections(db) -> List[TextContent]:
     )
 
 
-async def _call_run_action(db, args: Dict[str, Any]) -> List[TextContent]:
+async def _call_run_action(
+    db,
+    args: Dict[str, Any],
+    *,
+    server: Optional[Server] = None,
+    progress_token: Any = None,
+) -> List[TextContent]:
     prompt = (args.get("prompt") or "").strip()
     if not prompt:
         return _json_block({"error": "prompt is required"})
@@ -606,13 +705,24 @@ async def _call_run_action(db, args: Dict[str, Any]) -> List[TextContent]:
     if language not in ("en", "hinglish"):
         language = "en"
     user_id = _resolve_mcp_user_id(db)
-    result = await asyncio.to_thread(
-        dynamic_agent_service.run_turn,
-        db,
-        user_id=user_id,
-        prompt=prompt,
-        language=language,
-    )
+    loop = asyncio.get_event_loop()
+    cb, queue = _make_progress_callback(server, loop) if server else (None, asyncio.Queue())
+    emitter = asyncio.create_task(
+        _progress_emitter_task(server, queue, progress_token)
+    ) if server else None
+    try:
+        result = await asyncio.to_thread(
+            dynamic_agent_service.run_turn,
+            db,
+            user_id=user_id,
+            prompt=prompt,
+            language=language,
+            status_callback=cb,
+        )
+    finally:
+        await queue.put(None)
+        if emitter:
+            await emitter
     # If the agent says "needs_credentials" but we know this user has
     # zero connections, the most common cause is the wrong user being
     # used by MCP. Annotate the response with the resolved identity
