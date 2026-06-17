@@ -639,39 +639,50 @@ function DynamicAgentPage() {
               ) : (
                 <ul className="agent-drawer-list">
                   {connections.map((c) => (
-                    <li key={c.id} className="agent-drawer-item">
-                      <div>
-                        <div className="agent-drawer-item-title">
-                          {c.display_name || c.tool}
+                    <li key={c.id} className="agent-drawer-item" style={{
+                      flexDirection: 'column',
+                      alignItems: 'stretch',
+                      gap: 6,
+                      padding: '10px 12px',
+                      border: !c.is_authorized ? '1px solid #f59e0b33' : '1px solid transparent',
+                      borderRadius: 8,
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div className="agent-drawer-item-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {c.display_name || c.tool}
+                            {c.is_authorized
+                              ? <span style={{ fontSize: '0.65rem', color: '#22c55e', background: '#22c55e18', borderRadius: 4, padding: '1px 6px' }}>● Active</span>
+                              : <span style={{ fontSize: '0.65rem', color: '#f59e0b', background: '#f59e0b18', borderRadius: 4, padding: '1px 6px' }}>⚠ Needs auth</span>
+                            }
+                          </div>
+                          <div className="agent-drawer-item-sub">{c.auth_type}</div>
                         </div>
-                        <div className="agent-drawer-item-sub">
-                          {c.auth_type}
-                          {!c.is_authorized && (
-                            <span style={{ color: 'var(--color-warning, #f59e0b)', marginLeft: 6, fontSize: '0.75rem' }}>
-                              — not authorized
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                        {!c.is_authorized && (
-                          <a
-                            href={dynamicAgentService.getOAuthAuthorizeUrl(c.tool)}
-                            className="btn btn-primary btn-sm"
-                            style={{ fontSize: '0.75rem', padding: '2px 8px' }}
-                          >
-                            Authorize
-                          </a>
-                        )}
                         <button
                           type="button"
-                          className="btn btn-ghost btn-sm btn-icon"
+                          className="btn btn-ghost btn-sm"
+                          style={{ fontSize: '0.7rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: 3 }}
                           onClick={() => handleDeleteConnection(c.id)}
-                          aria-label="Disconnect"
+                          title="Disconnect"
                         >
-                          <FiTrash2 />
+                          <FiTrash2 size={12} /> Disconnect
                         </button>
                       </div>
+                      {!c.is_authorized && (
+                        <div style={{ background: '#f59e0b12', border: '1px solid #f59e0b33', borderRadius: 6, padding: '8px 10px', fontSize: '0.78rem', color: '#92400e' }}>
+                          <div style={{ fontWeight: 600, marginBottom: 4 }}>⚠ Authorization required</div>
+                          <div style={{ marginBottom: 6, color: '#78350f' }}>
+                            Paste an <strong>Access Token</strong> directly while reconnecting, or use the Authorize button if OAuth is set up.
+                          </div>
+                          <a
+                            href={dynamicAgentService.getOAuthAuthorizeUrl(c.tool)}
+                            className="btn btn-sm"
+                            style={{ fontSize: '0.72rem', padding: '3px 10px', background: '#f59e0b', color: '#fff', borderRadius: 5, textDecoration: 'none' }}
+                          >
+                            Authorize via OAuth →
+                          </a>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
