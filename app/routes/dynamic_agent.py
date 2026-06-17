@@ -41,7 +41,7 @@ from app.db.models import (
     ToolDefinition,
     User,
 )
-from app.core.security import encrypt_api_key
+from app.core.security import decode_token, encrypt_api_key
 from app.routes.auth import get_current_user
 from app.services.dynamic_agent_service import (
     DynamicAgentError,
@@ -670,15 +670,40 @@ def _callback_uri(request: Request) -> str:
 async def oauth_authorize(
     tool_name: str,
     request: Request,
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    token: Optional[str] = Query(None),
 ):
     """Start OAuth2 authorization code flow for a tool.
 
-    Generates a state token, stores it server-side, then redirects the browser
-    to the provider's authorize URL. The callback will exchange the code for
-    tokens and store them on the connection row.
+    Accepts the JWT either via Authorization header (normal API calls) or via
+    ?token= query param (browser redirect where headers can't be set).
     """
+    # Resolve user from query-param token (browser redirect) or header.
+    current_user = None
+    if token:
+        payload = decode_token(token)
+        if payload:
+            try:
+                uid = int(payload.get("sub"))
+            except (TypeError, ValueError):
+                uid = None
+            if uid:
+                current_user = db.query(User).filter(User.id == uid).first()
+    if current_user is None:
+        # Fall back to Authorization header via the normal dependency.
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            payload = decode_token(auth_header[7:])
+            if payload:
+                try:
+                    uid = int(payload.get("sub"))
+                except (TypeError, ValueError):
+                    uid = None
+                if uid:
+                    current_user = db.query(User).filter(User.id == uid).first()
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
     tool = (
         db.query(ToolDefinition)
         .filter(ToolDefinition.name == tool_name.strip().lower())
