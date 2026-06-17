@@ -38,6 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         curl \
         libpq-dev \
+        openssl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -57,6 +58,8 @@ COPY app/ ./app/
 # SPA-fallback (see main.py). Keeping it inside ./frontend/dist matches
 # the path main.py probes for, so the same code works in dev and docker.
 COPY --from=frontend-builder /build/dist ./frontend/dist
+COPY start.sh ./
+RUN chmod +x start.sh
 
 # Environment defaults — overridable from docker-compose / .env.
 ENV HOST=0.0.0.0 \
@@ -70,6 +73,8 @@ EXPOSE 8000
 # exposes. Docker uses this to mark the container healthy/unhealthy
 # before starting dependents in docker-compose.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl --silent --fail http://localhost:${PORT}/api/health || exit 1
+    CMD curl --silent --fail -k https://localhost:${PORT}/api/health \
+        || curl --silent --fail http://localhost:${PORT}/api/health \
+        || exit 1
 
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./start.sh"]
