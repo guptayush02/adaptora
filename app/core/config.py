@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     # short so unreachable hosts fail fast — a hung connect should not block
     # a request for the full read timeout.
     OLLAMA_CONNECT_TIMEOUT: int = 10
+    # How long Ollama keeps the model resident in memory after a request.
+    # The default Ollama keep-alive is only 5 minutes, after which the model
+    # unloads and the next request pays a ~30s cold reload — that reload is
+    # what made `run_action` (3 sequential LLM calls) blow past the MCP
+    # client's request timeout. Keeping the model pinned ("-1" = forever,
+    # or a duration like "30m") turns every call into a warm ~1-3s call.
+    OLLAMA_KEEP_ALIVE: str = "30m"
 
     # Ollama hosted web search (optional). This is a SEPARATE service from the
     # EC2 chat endpoint above — it's hosted on ollama.com and needs an API

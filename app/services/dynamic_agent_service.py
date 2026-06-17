@@ -439,6 +439,9 @@ def _ollama_chat_json(
                 ],
                 "format": "json",
                 "stream": False,
+                # Pin the model in memory so back-to-back calls in a single
+                # run_turn (and across turns) don't pay the ~30s cold reload.
+                "keep_alive": settings.OLLAMA_KEEP_ALIVE,
                 "options": {
                     "temperature": temperature,
                     "num_predict": num_predict,
@@ -486,6 +489,9 @@ def _ollama_chat_text(
                     {"role": "user", "content": user},
                 ],
                 "stream": False,
+                # Pin the model in memory (see _ollama_chat_json) so the
+                # summary call doesn't trigger a cold reload either.
+                "keep_alive": settings.OLLAMA_KEEP_ALIVE,
                 "options": {
                     "temperature": temperature,
                     "num_predict": num_predict,
@@ -505,6 +511,43 @@ def _ollama_chat_text(
     except Exception as exc:
         logger.warning(f"summary LLM call failed: {exc}")
         return ""
+
+def warmup_model(timeout: float = 60.0) -> bool:
+    """Load the model into Ollama's memory ahead of the first real request.
+
+    The first inference after the model is unloaded pays a ~30s cold load.
+    Firing a tiny generation at startup (and pinning it with keep_alive)
+    means the user's first `run_action` is already warm instead of eating
+    that reload inside the request — which is exactly what tripped the MCP
+    client's timeout. Best-effort: never raises, just logs and returns a
+    bool so the caller can decide whether to retry."""
+    if not settings.OLLAMA_API_URL or not settings.OLLAMA_MODEL:
+        return False
+    try:
+        resp = requests.post(
+            f"{settings.OLLAMA_API_URL}/api/chat",
+            json={
+                "model": settings.OLLAMA_MODEL,
+                "messages": [{"role": "user", "content": "ok"}],
+                "stream": False,
+                "keep_alive": settings.OLLAMA_KEEP_ALIVE,
+                # num_ctx MUST match the value the real calls use (the 4096
+                # default in _ollama_chat_json / _ollama_chat_text). If they
+                # differ, the first real request re-loads the model with a
+                # different context size and the warmup is wasted.
+                "options": {"num_predict": 1, "num_ctx": 4096},
+            },
+            timeout=(settings.OLLAMA_CONNECT_TIMEOUT, timeout),
+        )
+        resp.raise_for_status()
+        logger.info(
+            f"Ollama model '{settings.OLLAMA_MODEL}' warmed up and pinned "
+            f"(keep_alive={settings.OLLAMA_KEEP_ALIVE})."
+        )
+        return True
+    except Exception as exc:
+        logger.warning(f"Ollama warmup failed (will load on first request): {exc}")
+        return False
 
 # Built-in seed docs for the most common tools. Used so the agent can
 # answer the first request for these without first hitting the web — the
@@ -1006,7 +1049,12 @@ class DynamicAgentService:
                 _TOOL_IDENTIFY_SYSTEM,
                 f"User prompt: {prompt!r}\n\nReturn the JSON envelope.",
                 temperature=0.0,
-                num_predict=192,
+                # Output is a tiny 4-field JSON, so cap generation short.
+                # IMPORTANT: keep num_ctx at the shared default — changing
+                # num_ctx between calls forces Ollama to reload the model
+                # (a ~30s cold load), which would defeat keep_alive. Every
+                # call in a turn must use the SAME num_ctx to stay warm.
+                num_predict=96,
             )
         except Exception as exc:
             logger.warning(f"identify_tool: LLM failed: {exc}")
@@ -3102,7 +3150,11 @@ class DynamicAgentService:
                 _ACTION_PLAN_SYSTEM,
                 user_msg,
                 temperature=0.0,
-                num_predict=384,
+                # A single HTTP-call plan is a small JSON object; 384 was far
+                # more than needed and dominated generation time. Keep num_ctx
+                # at the shared default so the model stays warm across calls
+                # (varying it forces a model reload — see identify_tool).
+                num_predict=224,
             )
         except Exception as exc:
             logger.exception("plan_action: LLM failed")
@@ -3462,8 +3514,15 @@ class DynamicAgentService:
         prompt: str,
         language: str = "en",
         status_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+        summarize: bool = True,
     ) -> Dict[str, Any]:
         """End-to-end: identify → docs → connection → plan → execute.
+
+        ``summarize=False`` skips the final user-facing LLM summary call —
+        used by the MCP run_action path, where the calling AI assistant
+        already turns the raw response into prose, so paying for a third
+        local-LLM round-trip just adds latency (and timeout risk). The raw
+        http_status / response_body are still returned either way.
 
         Returns the Thought / Action / Action_Input / Summary envelope the
         frontend renders. On any "blocked" step (no creds, no docs) we
@@ -3707,15 +3766,23 @@ class DynamicAgentService:
         # Once the connection succeeds, mark last_used_at.
         db.commit()
 
-        emit("summarizing", status=("success" if (http_status is not None and http_status < 400) else "error"))
-        summary = self.summarize_for_user(
-            prompt=prompt,
-            plan=plan,
-            http_status=http_status,
-            response_body=response_body,
-            error=error_text,
-            language=language,
-        )
+        if summarize:
+            emit("summarizing", status=("success" if (http_status is not None and http_status < 400) else "error"))
+            summary = self.summarize_for_user(
+                prompt=prompt,
+                plan=plan,
+                http_status=http_status,
+                response_body=response_body,
+                error=error_text,
+                language=language,
+            )
+        else:
+            # Caller (MCP assistant) will summarize the raw response itself —
+            # skip the extra local-LLM round-trip. Deterministic fallback
+            # keeps a sensible one-liner in the envelope.
+            summary = self._fallback_summary(
+                language=language, http_status=http_status, error=error_text
+            )
 
         return self._log_and_return(
             db,

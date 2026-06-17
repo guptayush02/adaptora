@@ -379,6 +379,7 @@ class LLMProvider:
                 "model": model,
                 "prompt": full_prompt,
                 "stream": False,
+                "keep_alive": settings.OLLAMA_KEEP_ALIVE,
                 "options": {
                     "temperature": temperature,
                     "num_predict": 256,
@@ -416,6 +417,7 @@ class LLMProvider:
                 "model": model,
                 "messages": messages,
                 "stream": False,
+                "keep_alive": settings.OLLAMA_KEEP_ALIVE,
                 "options": {
                     "temperature": temperature,
                     "num_predict": num_predict,

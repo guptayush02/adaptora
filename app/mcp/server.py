@@ -67,7 +67,10 @@ from app.db.models import (  # noqa: E402
     ToolDefinition,
     User,
 )
-from app.services.dynamic_agent_service import dynamic_agent_service  # noqa: E402
+from app.services.dynamic_agent_service import (  # noqa: E402
+    dynamic_agent_service,
+    warmup_model,
+)
 
 
 # A single MCP server instance represents one local user. Two ways to
@@ -152,7 +155,7 @@ def _make_progress_callback(
     return callback, q
 
 
-_HEARTBEAT_INTERVAL = 10  # seconds between keepalive pings when no step fires
+_HEARTBEAT_INTERVAL = 5  # seconds between keepalive pings when no step fires
 
 
 async def _progress_emitter_task(
@@ -192,6 +195,11 @@ async def _progress_emitter_task(
                 )
             except Exception:
                 pass  # never let notification failure crash the main call
+
+    # Emit an immediate ping so the client sees activity right away and
+    # starts (re)setting its request timeout from t=0, rather than waiting
+    # a full heartbeat interval for the first sign of life.
+    await _send("starting…")
 
     while True:
         try:
@@ -740,6 +748,10 @@ async def _call_run_action(
             prompt=prompt,
             language=language,
             status_callback=cb,
+            # The calling assistant summarizes the raw response itself, so
+            # skip the extra local-LLM summary round-trip (saves a whole
+            # inference and shrinks the timeout window).
+            summarize=False,
         )
     finally:
         await queue.put(None)
@@ -836,6 +848,12 @@ async def run_stdio() -> None:
     """Run the MCP server over stdio (the standard transport for
     desktop MCP clients like Claude Desktop)."""
     init_db()  # ensure tables exist on first run
+    # Warm the local model in the background so the first run_action is
+    # already resident in memory instead of paying a ~30s cold load inside
+    # the request (which is what tripped the MCP client's timeout). Runs in
+    # a thread so it never blocks the server from accepting connections.
+    # Keep a reference so the task isn't garbage-collected before it runs.
+    _warmup_task = asyncio.create_task(asyncio.to_thread(warmup_model))  # noqa: F841
     server = build_mcp_server()
     init_options = server.create_initialization_options()
     init_options.instructions = _PASSTHROUGH_INSTRUCTIONS
