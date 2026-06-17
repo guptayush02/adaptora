@@ -655,6 +655,16 @@ async def list_logs(
 _OAUTH_STATES: Dict[str, Dict[str, Any]] = {}
 _OAUTH_STATE_TTL = 600  # seconds
 
+# Override the callback base URL via env var (useful when running behind a
+# reverse proxy or when the provider requires https but the app runs on http).
+# Example: OAUTH_REDIRECT_BASE_URL=https://localhost:8000
+_OAUTH_REDIRECT_BASE_URL = os.environ.get("OAUTH_REDIRECT_BASE_URL", "").rstrip("/")
+
+
+def _callback_uri(request: Request) -> str:
+    base = _OAUTH_REDIRECT_BASE_URL or str(request.base_url).rstrip("/")
+    return f"{base}/api/dynamic-agent/oauth/callback"
+
 
 @router.get("/oauth/authorize/{tool_name}")
 async def oauth_authorize(
@@ -715,8 +725,7 @@ async def oauth_authorize(
         "created_at": time.time(),
     }
 
-    base_url = str(request.base_url).rstrip("/")
-    callback_uri = f"{base_url}/api/dynamic-agent/oauth/callback"
+    callback_uri = _callback_uri(request)
 
     scopes = creds.get("scopes") or cfg.get("default_scopes") or ""
     params = {
@@ -780,8 +789,7 @@ async def oauth_callback(
     client_id = creds.get("client_id", "")
     client_secret = creds.get("client_secret", "")
 
-    base_url = str(request.base_url).rstrip("/")
-    callback_uri = f"{base_url}/api/dynamic-agent/oauth/callback"
+    callback_uri = _callback_uri(request)
 
     try:
         resp = http_requests.post(
