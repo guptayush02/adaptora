@@ -3039,10 +3039,35 @@ class DynamicAgentService:
 
     # =================================================== step 4: plan + run
 
+    @staticmethod
+    def _filter_endpoints(endpoints: dict, prompt: str, max_endpoints: int = 12) -> dict:
+        """Return at most max_endpoints entries most relevant to prompt (keyword match)."""
+        if not endpoints or len(endpoints) <= max_endpoints:
+            return endpoints
+        prompt_lower = prompt.lower()
+        keywords = [w for w in prompt_lower.replace("/", " ").split() if len(w) > 2]
+
+        def score(item):
+            path, info = item
+            text = (path + " " + json.dumps(info, default=str)).lower()
+            return sum(1 for kw in keywords if kw in text)
+
+        scored = sorted(endpoints.items(), key=score, reverse=True)
+        top = dict(scored[:max_endpoints])
+        # always include any exact path match
+        for path in endpoints:
+            if any(kw in path.lower() for kw in keywords) and path not in top:
+                top[path] = endpoints[path]
+                if len(top) >= max_endpoints + 4:
+                    break
+        return top
+
     def plan_action(
         self, *, tool: ToolDefinition, prompt: str
     ) -> Dict[str, Any]:
-        endpoints_summary = json.dumps(tool.endpoints or {}, default=str)
+        raw_endpoints = tool.endpoints or {}
+        filtered = self._filter_endpoints(raw_endpoints, prompt)
+        endpoints_summary = json.dumps(filtered, default=str)
         # Provider-specific gotchas the planner MUST follow (Razorpay's
         # paise-not-rupees rule, Stripe's cents rule, etc.). Sourced from
         # the seed dict — LLM-scraped tools just have no quirks.
