@@ -152,6 +152,9 @@ def _make_progress_callback(
     return callback, q
 
 
+_HEARTBEAT_INTERVAL = 10  # seconds between keepalive pings when no step fires
+
+
 async def _progress_emitter_task(
     server: Server,
     queue: asyncio.Queue,
@@ -164,12 +167,17 @@ async def _progress_emitter_task(
     into the queue. If the client didn't supply a progressToken we still
     drain the queue (so it doesn't grow unbounded) but skip the network
     write.
+
+    Heartbeat: if no step fires for _HEARTBEAT_INTERVAL seconds (e.g.
+    during a long local-LLM inference call that has no intermediate
+    callbacks), we emit a generic "working…" notification so the MCP
+    client's request timeout keeps resetting.
     """
     step = 0
-    while True:
-        msg = await queue.get()
-        if msg is None:
-            break
+    elapsed = 0
+
+    async def _send(msg: str) -> None:
+        nonlocal step
         step += 1
         if progress_token is not None:
             try:
@@ -182,6 +190,17 @@ async def _progress_emitter_task(
                 )
             except Exception:
                 pass  # never let notification failure crash the main call
+
+    while True:
+        try:
+            msg = await asyncio.wait_for(queue.get(), timeout=_HEARTBEAT_INTERVAL)
+        except asyncio.TimeoutError:
+            elapsed += _HEARTBEAT_INTERVAL
+            await _send(f"working… ({elapsed}s elapsed)")
+            continue
+        if msg is None:
+            break
+        await _send(msg)
 
 
 # Meta-tool names — also used as a guard in handle_call_tool to route
