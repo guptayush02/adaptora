@@ -249,10 +249,62 @@ The agent is configured via environment variables. See [.env.example](./.env.exa
 
 ---
 
+## Connecting OAuth2 Tools (Spotify, GitHub, Notion, Google, Slack…)
+
+OAuth2 tools need two steps: save your app credentials first, then complete the browser-based authorization to get an access token.
+
+### Step 1 — Create an OAuth2 app on the provider
+
+Every OAuth2 provider requires you to register an app and get a `client_id` / `client_secret`. During registration you must whitelist a **redirect URI**.
+
+Adaptora uses **one redirect URI for all tools**:
+
+```
+http://<your-adaptora-host>/api/dynamic-agent/oauth/callback
+```
+
+| Deployment | Redirect URI |
+|---|---|
+| Local Docker / dev | `http://localhost:8000/api/dynamic-agent/oauth/callback` |
+| Custom domain | `https://adaptora.example.com/api/dynamic-agent/oauth/callback` |
+
+Add this exact URL in your provider's developer console before proceeding.
+
+**Provider-specific console links:**
+
+| Tool | Console |
+|---|---|
+| Spotify | [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) → your app → Edit Settings → Redirect URIs |
+| GitHub | [github.com/settings/apps](https://github.com/settings/apps) or OAuth Apps → Authorization callback URL |
+| Google | [console.cloud.google.com](https://console.cloud.google.com) → APIs & Services → Credentials → Authorized redirect URIs |
+| Notion | [notion.so/my-integrations](https://www.notion.so/my-integrations) → your app → Redirect URIs |
+| Slack | [api.slack.com/apps](https://api.slack.com/apps) → your app → OAuth & Permissions → Redirect URLs |
+
+### Step 2 — Save credentials in the Adaptora web UI
+
+Open the Dynamic Agent page → **Tools & Connections** sidebar → connect to your tool and enter:
+- `client_id`
+- `client_secret`
+- `scopes` (comma-separated, e.g. `user-library-read,user-top-read` for Spotify)
+
+Click **Save & Connect**. The tool shows "Connected" but is marked **not authorized** until you complete Step 3.
+
+### Step 3 — Authorize (browser OAuth2 flow)
+
+In the **Connected** section of the sidebar, click the **Authorize** button next to your tool. This redirects you to the provider's consent screen. After you grant permission, you're redirected back and the `access_token` is stored. The tool is now fully authorized and ready to use.
+
+> The same redirect URI covers every OAuth2 tool — you only need to register it once per Adaptora deployment, not once per tool.
+
+### Token refresh
+
+If a tool's access token expires, Adaptora automatically tries to refresh it using the stored `refresh_token` before each request. If the provider doesn't issue a refresh token (e.g. Spotify's implicit flow), re-authorize via the **Authorize** button in the sidebar.
+
+---
+
 ## Roadmap
 
 - [ ] WebSocket transport for MCP server (in addition to stdio) — easier integration with browser clients
-- [ ] Per-tool credential vault rotation / refresh-token handling for OAuth2
+- [x] Per-tool credential vault rotation / refresh-token handling for OAuth2
 - [ ] GraphQL support (for Linear, Shopify Admin)
 - [ ] AsyncAPI / WebHook subscription support
 - [ ] Audit-log export & replay (already stored in `dynamic_agent_runs` table)
