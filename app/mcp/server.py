@@ -844,9 +844,44 @@ Your role is purely to forward the message and return the answer.\
 """
 
 
+def _isolate_stdout_for_protocol():
+    """Make stdout (fd 1) PRIVATE to the MCP JSON-RPC transport.
+
+    stdio MCP uses fd 1 exclusively for protocol frames — one JSON
+    message per line. Any other write to stdout corrupts the stream and
+    the client dies with "Unexpected non-whitespace character after JSON
+    at position 4" (the "2026" of a log timestamp parses as a number,
+    then the "-" breaks it). Per-`print()` fixes can't cover third-party
+    libraries (googlesearch, ollama, httpx, C extensions) that write to
+    stdout during a request, so we close that whole class of bug here:
+
+      * dup the real stdout to a private fd → hand ONLY this to the
+        transport, so protocol frames still reach the client;
+      * dup2 stderr onto fd 1 → every other write to stdout (from any
+        language level, including C) now lands on stderr, harmlessly;
+      * repoint sys.stdout at sys.stderr → Python-level prints follow.
+
+    Returns an anyio-wrapped text file over the private stdout, ready to
+    pass as ``stdio_server(stdout=...)``.
+    """
+    import anyio
+
+    sys.stdout.flush()
+    real_stdout_fd = os.dup(1)          # private copy of the true stdout
+    os.dup2(2, 1)                       # fd 1 now points at stderr
+    sys.stdout = sys.stderr             # Python-level prints → stderr too
+    real_stdout = os.fdopen(
+        real_stdout_fd, "w", encoding="utf-8", buffering=1
+    )
+    return anyio.wrap_file(real_stdout)
+
+
 async def run_stdio() -> None:
     """Run the MCP server over stdio (the standard transport for
     desktop MCP clients like Claude Desktop)."""
+    # Lock down stdout BEFORE anything else can write to it (warmup,
+    # request handling, third-party libs). See the function docstring.
+    protocol_stdout = _isolate_stdout_for_protocol()
     init_db()  # ensure tables exist on first run
     # Warm the local model in the background so the first run_action is
     # already resident in memory instead of paying a ~30s cold load inside
@@ -857,7 +892,7 @@ async def run_stdio() -> None:
     server = build_mcp_server()
     init_options = server.create_initialization_options()
     init_options.instructions = _PASSTHROUGH_INSTRUCTIONS
-    async with stdio_server() as (read_stream, write_stream):
+    async with stdio_server(stdout=protocol_stdout) as (read_stream, write_stream):
         await server.run(
             read_stream,
             write_stream,

@@ -547,10 +547,10 @@ class LLMProvider:
     def _search_google_query(self, query: str, max_results: int = 5) -> list:
         try:
             results = list(search(query, num_results=max_results, sleep_interval=2))
-            print(f"results from google search: {results}")
+            logger.debug(f"results from google search: {results}")
             return results
         except Exception as e:
-            print(f"Google search error: {e}")
+            logger.warning(f"Google search error: {e}")
             return []
 
     # Hard cap for the Tavily call (search + per-URL fetch + retries). When
@@ -1115,7 +1115,7 @@ class LLMProvider:
             )
         )
 
-        print(f"Web search results for {prompt!r}: {results}")
+        logger.debug(f"Web search results for {prompt!r}: {results}")
 
         # No results at all → don't call the LLM; it will only hallucinate.
         if not results:
