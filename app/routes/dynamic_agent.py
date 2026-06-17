@@ -16,14 +16,20 @@ authenticated user. The lifecycle:
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
+import os
 import queue
+import secrets
 import threading
 import time
+import urllib.parse
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import StreamingResponse
+import requests as http_requests
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import RedirectResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -35,6 +41,7 @@ from app.db.models import (
     ToolDefinition,
     User,
 )
+from app.core.security import encrypt_api_key
 from app.routes.auth import get_current_user
 from app.services.dynamic_agent_service import (
     DynamicAgentError,
@@ -88,6 +95,7 @@ class ConnectionItem(BaseModel):
     tool: str
     display_name: Optional[str] = None
     auth_type: str
+    is_authorized: bool = True  # False for OAUTH2 connections missing access_token
     token_expires_at: Optional[str] = None
     last_used_at: Optional[str] = None
     created_at: str
@@ -378,18 +386,24 @@ async def list_connections(
         .order_by(DynamicToolConnection.created_at.desc())
         .all()
     )
-    return [
-        ConnectionItem(
+    items = []
+    for r in rows:
+        at = (r.auth_type or "API_KEY").upper()
+        is_authorized = True
+        if at in ("OAUTH2", "OAUTH2_PKCE"):
+            creds = dynamic_agent_service.decrypt_credentials(r)
+            is_authorized = bool(creds.get("access_token"))
+        items.append(ConnectionItem(
             id=r.id,
             tool=r.tool_name,
             display_name=r.display_name,
             auth_type=r.auth_type or "API_KEY",
+            is_authorized=is_authorized,
             token_expires_at=r.token_expires_at.isoformat() if r.token_expires_at else None,
             last_used_at=r.last_used_at.isoformat() if r.last_used_at else None,
             created_at=r.created_at.isoformat(),
-        )
-        for r in rows
-    ]
+        ))
+    return items
 
 
 @router.delete("/connections/{connection_id}")
@@ -633,3 +647,180 @@ async def list_logs(
         )
         for r in rows
     ]
+
+
+# ---------------------------------------------------------------- OAuth2 flow
+# In-memory state store: state_token → {user_id, tool_name}
+# Short-lived (10 min TTL enforced by the callback).
+_OAUTH_STATES: Dict[str, Dict[str, Any]] = {}
+_OAUTH_STATE_TTL = 600  # seconds
+
+
+@router.get("/oauth/authorize/{tool_name}")
+async def oauth_authorize(
+    tool_name: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Start OAuth2 authorization code flow for a tool.
+
+    Generates a state token, stores it server-side, then redirects the browser
+    to the provider's authorize URL. The callback will exchange the code for
+    tokens and store them on the connection row.
+    """
+    tool = (
+        db.query(ToolDefinition)
+        .filter(ToolDefinition.name == tool_name.strip().lower())
+        .first()
+    )
+    if not tool:
+        raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found.")
+
+    cfg = tool.auth_config or {}
+    authorize_url = cfg.get("oauth_authorize_url")
+    if not authorize_url:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tool '{tool_name}' has no oauth_authorize_url configured.",
+        )
+
+    conn = (
+        db.query(DynamicToolConnection)
+        .filter(
+            DynamicToolConnection.user_id == current_user.id,
+            DynamicToolConnection.tool_name == tool.name,
+            DynamicToolConnection.is_active == True,
+        )
+        .first()
+    )
+    if not conn:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No saved credentials for '{tool_name}'. Save client_id/secret first.",
+        )
+
+    creds = dynamic_agent_service.decrypt_credentials(conn)
+    client_id = creds.get("client_id")
+    if not client_id:
+        raise HTTPException(
+            status_code=400,
+            detail="client_id not found in saved credentials.",
+        )
+
+    state = secrets.token_urlsafe(32)
+    _OAUTH_STATES[state] = {
+        "user_id": current_user.id,
+        "tool_name": tool.name,
+        "created_at": time.time(),
+    }
+
+    base_url = str(request.base_url).rstrip("/")
+    callback_uri = f"{base_url}/api/dynamic-agent/oauth/callback"
+
+    scopes = creds.get("scopes") or cfg.get("default_scopes") or ""
+    params = {
+        "client_id": client_id,
+        "response_type": "code",
+        "redirect_uri": callback_uri,
+        "state": state,
+        "scope": scopes,
+    }
+    full_url = authorize_url + "?" + urllib.parse.urlencode(params)
+    return RedirectResponse(url=full_url)
+
+
+@router.get("/oauth/callback")
+async def oauth_callback(
+    code: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+    error: Optional[str] = Query(None),
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """Handle the OAuth2 callback, exchange code for tokens, update credentials."""
+    if error:
+        return RedirectResponse(url=f"/?oauth_error={urllib.parse.quote(error)}")
+
+    if not state or state not in _OAUTH_STATES:
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state.")
+
+    state_data = _OAUTH_STATES.pop(state)
+    if time.time() - state_data["created_at"] > _OAUTH_STATE_TTL:
+        raise HTTPException(status_code=400, detail="OAuth state expired. Try again.")
+
+    user_id = state_data["user_id"]
+    tool_name = state_data["tool_name"]
+
+    tool = db.query(ToolDefinition).filter(ToolDefinition.name == tool_name).first()
+    if not tool:
+        raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found.")
+
+    cfg = tool.auth_config or {}
+    token_url = cfg.get("oauth_token_url")
+    if not token_url:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tool '{tool_name}' has no oauth_token_url configured.",
+        )
+
+    conn = (
+        db.query(DynamicToolConnection)
+        .filter(
+            DynamicToolConnection.user_id == user_id,
+            DynamicToolConnection.tool_name == tool_name,
+            DynamicToolConnection.is_active == True,
+        )
+        .first()
+    )
+    if not conn:
+        raise HTTPException(status_code=400, detail="No credentials row found.")
+
+    creds = dynamic_agent_service.decrypt_credentials(conn)
+    client_id = creds.get("client_id", "")
+    client_secret = creds.get("client_secret", "")
+
+    base_url = str(request.base_url).rstrip("/")
+    callback_uri = f"{base_url}/api/dynamic-agent/oauth/callback"
+
+    try:
+        resp = http_requests.post(
+            token_url,
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": callback_uri,
+                "client_id": client_id,
+                "client_secret": client_secret,
+            },
+            headers={"Accept": "application/json"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        token_data = resp.json()
+    except Exception as exc:
+        logger.error("OAuth2 token exchange failed: %s", exc)
+        raise HTTPException(status_code=502, detail=f"Token exchange failed: {exc}")
+
+    access_token = token_data.get("access_token")
+    if not access_token:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Provider returned no access_token: {token_data}",
+        )
+
+    # Merge new tokens into existing credentials and re-encrypt.
+    creds["access_token"] = access_token
+    if token_data.get("refresh_token"):
+        creds["refresh_token"] = token_data["refresh_token"]
+    if token_data.get("expires_in"):
+        from datetime import datetime, timedelta
+        conn.token_expires_at = datetime.utcnow() + timedelta(
+            seconds=int(token_data["expires_in"])
+        )
+
+    conn.credentials_encrypted = encrypt_api_key(json.dumps(creds, default=str))
+    db.commit()
+
+    logger.info("OAuth2 token stored for user=%s tool=%s", user_id, tool_name)
+    return RedirectResponse(url="/?oauth_success=1&tool=" + urllib.parse.quote(tool_name))

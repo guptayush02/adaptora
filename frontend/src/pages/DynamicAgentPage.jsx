@@ -611,16 +611,34 @@ function DynamicAgentPage() {
                         <div className="agent-drawer-item-title">
                           {c.display_name || c.tool}
                         </div>
-                        <div className="agent-drawer-item-sub">{c.auth_type}</div>
+                        <div className="agent-drawer-item-sub">
+                          {c.auth_type}
+                          {!c.is_authorized && (
+                            <span style={{ color: 'var(--color-warning, #f59e0b)', marginLeft: 6, fontSize: '0.75rem' }}>
+                              — not authorized
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm btn-icon"
-                        onClick={() => handleDeleteConnection(c.id)}
-                        aria-label="Disconnect"
-                      >
-                        <FiTrash2 />
-                      </button>
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        {!c.is_authorized && (
+                          <a
+                            href={dynamicAgentService.getOAuthAuthorizeUrl(c.tool)}
+                            className="btn btn-primary btn-sm"
+                            style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+                          >
+                            Authorize
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm btn-icon"
+                          onClick={() => handleDeleteConnection(c.id)}
+                          aria-label="Disconnect"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>

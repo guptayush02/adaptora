@@ -427,4 +427,6 @@ export const dynamicAgentService = {
     api
       .get('/api/dynamic-agent/logs', { params: { limit } })
       .then((r) => r.data),
+  getOAuthAuthorizeUrl: (toolName) =>
+    `/api/dynamic-agent/oauth/authorize/${encodeURIComponent(toolName)}`,
 };
