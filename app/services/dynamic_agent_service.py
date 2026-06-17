@@ -772,9 +772,10 @@ _SEED_TOOLS: Dict[str, Dict[str, Any]] = {
         # the planner's system prompt so the 3B model doesn't have to
         # remember them on its own.
         "quirks": [
-            "Amounts are integers in PAISE, not rupees. 100 INR = 10000 paise. "
-            "500 INR = 50000. Never send a decimal amount and never send the "
-            "INR value directly — always multiply by 100 and round to int.",
+            "Amounts are integers in PAISE (1 INR = 100 paise). "
+            "Formula: amount_paise = rupees * 100. "
+            "Examples: 1 INR = 100, 10 INR = 1000, 50 INR = 5000, 100 INR = 10000, 500 INR = 50000. "
+            "NEVER send the rupee value directly. NEVER copy an example amount — always compute from the user's number.",
             "Currency must be the 3-letter ISO code (e.g. \"INR\"), not a symbol.",
             "For create_payment_link, the response field `short_url` is the "
             "public URL to share.",
@@ -786,15 +787,15 @@ _SEED_TOOLS: Dict[str, Dict[str, Any]] = {
             "create_order": {
                 "method": "POST",
                 "path": "/v1/orders",
-                "description": "Create an order. amount=INTEGER paise (multiply rupees by 100, e.g. 500 INR → 50000).",
-                "body": {"amount": "integer paise (rupees × 100)", "currency": "INR", "receipt": "string"},
+                "description": "Create an order. amount = rupees * 100 (paise). 10 INR → 1000, 50 INR → 5000, 500 INR → 50000.",
+                "body": {"amount": "integer paise = rupees*100", "currency": "INR", "receipt": "string"},
             },
             "create_payment_link": {
                 "method": "POST",
                 "path": "/v1/payment_links",
-                "description": "Create a shareable payment link. amount=INTEGER paise (multiply rupees by 100, e.g. 500 INR → 50000).",
+                "description": "Create a shareable payment link. amount = rupees * 100 (paise). 10 INR → 1000, 50 INR → 5000, 500 INR → 50000.",
                 "body": {
-                    "amount": "integer paise (rupees × 100)",
+                    "amount": "integer paise = rupees*100",
                     "currency": "INR",
                     "description": "string",
                     "customer": "object with name/email/contact",
