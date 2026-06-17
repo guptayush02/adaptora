@@ -3005,17 +3005,24 @@ class DynamicAgentService:
         if at in ("OAUTH2", "OAUTH1", "OAUTH2_PKCE"):
             return [
                 {
+                    "name": "access_token",
+                    "label": "Access Token (optional — paste directly to skip OAuth redirect)",
+                    "type": "password",
+                    "required": False,
+                    "placeholder": "Paste a token from the provider's API console to skip the browser flow",
+                },
+                {
                     "name": "client_id",
                     "label": "OAuth Client ID",
                     "type": "text",
-                    "required": True,
-                    "placeholder": "From the provider's OAuth app",
+                    "required": False,
+                    "placeholder": "Required only if using the Authorize button flow",
                 },
                 {
                     "name": "client_secret",
                     "label": "OAuth Client Secret",
                     "type": "password",
-                    "required": True,
+                    "required": False,
                 },
                 {
                     "name": "scopes",
