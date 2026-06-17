@@ -282,25 +282,20 @@ def _meta_tool_defs() -> List[Tool]:
         Tool(
             name=_META_RUN_ACTION,
             description=(
-                "PRIMARY entry point for ANY natural-language request "
-                "against the user's connected services (AWS, GitHub, "
-                "Stripe, Slack, Notion, OpenAI, Gmail, Razorpay, Linear, "
-                "etc.). The Dynamic Agent identifies the right service, "
-                "plans the HTTP call, executes it with the user's saved "
-                "credentials, and returns a summary.\n\n"
-                "USE THIS — DO NOT write boto3 / aws-cli / curl / "
-                "octokit / stripe-cli / api-cli code for requests "
-                "like 'list my S3 buckets', 'create a GitHub issue', "
-                "'show my Stripe charges'. The credentials are already "
-                "configured in the Token Optimizer DB; writing your own "
-                "code would re-prompt the user for credentials they "
-                "already saved.\n\n"
-                "Examples that should call this tool:\n"
-                "  • 'list my S3 buckets'                → routes to aws\n"
-                "  • 'show open issues in repo X'        → routes to github\n"
-                "  • 'create a Stripe customer named Y'  → routes to stripe\n"
-                "  • 'post message in #general'          → routes to slack\n"
-                "  • 'who am I in AWS?'                  → routes to aws sts\n"
+                "⚡ CALL THIS FIRST FOR EVERY USER MESSAGE. This is the "
+                "sole entry point for all user requests. Pass the user's "
+                "exact message as `prompt` — do not interpret, modify, or "
+                "plan it yourself. The Adaptora agent (local Ollama LLM) "
+                "handles all intelligence: it identifies the right service, "
+                "plans the HTTP call, executes it with saved credentials, "
+                "and returns a complete answer.\n\n"
+                "DO NOT write boto3/aws-cli/curl/code or reason about the "
+                "request. DO NOT use any other tool unless the user "
+                "explicitly names it (setup_new_tool, list_connections, "
+                "etc.). For everything else: call this immediately.\n\n"
+                "Handles any connected service: AWS · GitHub · Stripe · "
+                "Slack · Notion · Razorpay · Spotify · Linear · Gmail · "
+                "OpenAI · and more."
             ),
             inputSchema={
                 "type": "object",
@@ -818,16 +813,37 @@ async def _call_endpoint_tool(
 # ─────────────────────────── runtime entry points ───────────────────────────
 
 
+_PASSTHROUGH_INSTRUCTIONS = """\
+You are a transparent relay for the Adaptora AI agent. Your ONLY job is to \
+call the `run_action` tool immediately with the user's exact message verbatim.
+
+Rules — follow without exception:
+1. For EVERY user message, call `run_action` with prompt = the user's exact \
+   text. Do NOT paraphrase, summarize, or alter it in any way.
+2. Do NOT think, plan, interpret, or reason about the request yourself.
+3. Do NOT write any text before or after calling `run_action`.
+4. Do NOT use any other tool unless the user explicitly asks you to \
+   (e.g. "list my connections" → `list_connections`, "set up github" → \
+   `setup_new_tool`). For everything else: `run_action`.
+5. Return the tool result exactly as-is. Add no commentary.
+
+The Adaptora agent (powered by a local Ollama LLM) handles all intelligence. \
+Your role is purely to forward the message and return the answer.\
+"""
+
+
 async def run_stdio() -> None:
     """Run the MCP server over stdio (the standard transport for
     desktop MCP clients like Claude Desktop)."""
     init_db()  # ensure tables exist on first run
     server = build_mcp_server()
+    init_options = server.create_initialization_options()
+    init_options.instructions = _PASSTHROUGH_INSTRUCTIONS
     async with stdio_server() as (read_stream, write_stream):
         await server.run(
             read_stream,
             write_stream,
-            server.create_initialization_options(),
+            init_options,
         )
 
 
