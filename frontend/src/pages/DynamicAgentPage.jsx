@@ -14,6 +14,7 @@ import {
   FiX,
 } from 'react-icons/fi';
 import { dynamicAgentService } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 
 const LANGUAGES = [
   { value: 'en', label: 'English' },
@@ -162,18 +163,24 @@ function StatusChip({ status }) {
 
 function DynamicAgentPage() {
   // ----------------------------------------------------------------- state
+  const { user } = useAuth();
+  // Chat history and connections are per-user. Scope all persisted state by
+  // the logged-in user's id so that switching accounts on the same browser
+  // never shows one user another user's chat. `user` loads asynchronously
+  // (token verification), so fall back to 'anon' until it resolves.
+  const userScope = user?.id != null ? String(user.id) : 'anon';
+  const messagesKey = `dynamicAgentMessages:${userScope}`;
+
   const [language, setLanguage] = useState(
     () => localStorage.getItem('dynamicAgentLanguage') || 'en'
   );
   // messages: [{ role: 'user'|'agent', id, prompt? , turn?, ts }]
-  const [messages, setMessages] = useState(() => {
-    try {
-      const cached = localStorage.getItem('dynamicAgentMessages');
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
-  });
+  // Loaded from per-user storage by the effect below (not in the initializer,
+  // because `user` isn't known yet on the first render).
+  const [messages, setMessages] = useState([]);
+  // Tracks which user the currently-held `messages` were persisted for, so the
+  // persist effect never writes one user's chat under another user's key.
+  const persistScope = useRef(null);
   const [prompt, setPrompt] = useState('');
   const [running, setRunning] = useState(false);
   // The most recent `status` event emitted by the SSE pipeline. We use it
@@ -199,17 +206,42 @@ function DynamicAgentPage() {
     localStorage.setItem('dynamicAgentLanguage', language);
   }, [language]);
 
+  // One-time cleanup: remove the legacy un-scoped key that was shared across
+  // every account on this browser (the source of the cross-user chat leak).
   useEffect(() => {
+    localStorage.removeItem('dynamicAgentMessages');
+  }, []);
+
+  // Load this user's chat whenever the logged-in account changes. Declared
+  // BEFORE the persist effect so, on a user switch, this runs first and the
+  // persist effect below sees the scope change and skips that commit.
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(messagesKey);
+      setMessages(cached ? JSON.parse(cached) : []);
+    } catch {
+      setMessages([]);
+    }
+  }, [messagesKey]);
+
+  useEffect(() => {
+    // On a scope change the load effect above is repopulating `messages` for
+    // the new user; skip this run so we don't persist the previous user's chat
+    // under the new user's key.
+    if (persistScope.current !== userScope) {
+      persistScope.current = userScope;
+      return;
+    }
     // Cap stored history at the last 60 turns (~120 messages) so localStorage
     // doesn't blow up after a long session.
     try {
       const trimmed = messages.slice(-120);
-      localStorage.setItem('dynamicAgentMessages', JSON.stringify(trimmed));
+      localStorage.setItem(messagesKey, JSON.stringify(trimmed));
     } catch {
       // localStorage quota / serialization issues are not fatal — silently
       // skip persistence rather than breaking the page.
     }
-  }, [messages]);
+  }, [messages, messagesKey, userScope]);
 
   useEffect(() => {
     // Auto-scroll to the newest message
@@ -230,9 +262,13 @@ function DynamicAgentPage() {
     }
   };
 
+  // Reload connected tools/known tools when the account changes — connections
+  // and their secrets are per-user, so a switch must not keep the prior user's.
   useEffect(() => {
+    setConnections([]);
+    setTools([]);
     refreshSidebar();
-  }, []);
+  }, [userScope]);
 
   // Handle OAuth2 callback redirect (?oauth_success=1&tool=spotify or ?oauth_error=...)
   useEffect(() => {
