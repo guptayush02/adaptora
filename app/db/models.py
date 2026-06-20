@@ -214,3 +214,24 @@ class DynamicAgentRunLog(Base):
     sent_tokens = Column(Integer, default=0)
     tokens_saved = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class McpToolListStat(Base):
+    """Per-user snapshot of the `tools/list` payload cost — Adaptora's INPUT
+    side. Every MCP session ships the tool schemas into the cloud model's
+    context, so this is the dominant input-token cost. One row per user,
+    upserted whenever the MCP server lists tools.
+
+      input_raw_tokens  = what the verbose per-endpoint descriptions would cost
+      input_sent_tokens = what the lean descriptions actually cost
+      input_saved       = raw - sent
+    """
+
+    __tablename__ = "mcp_toollist_stats"
+
+    user_id = Column(Integer, primary_key=True)
+    input_raw_tokens = Column(Integer, default=0)
+    input_sent_tokens = Column(Integer, default=0)
+    input_saved = Column(Integer, default=0)
+    tool_count = Column(Integer, default=0)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

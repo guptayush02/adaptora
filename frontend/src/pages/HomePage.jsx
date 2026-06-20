@@ -154,9 +154,23 @@ function HomePage() {
         accent: 'rose',
       },
       {
-        label: 'Response Tokens Saved',
+        label: 'MCP Response Tokens Saved',
         value: `${formatNumber(savings?.tokens_saved)} (${(
           savings?.reduction_pct || 0
+        ).toFixed(1)}%)`,
+        icon: FiTrendingDown,
+        accent: 'emerald',
+      },
+      {
+        label: 'MCP Input Tokens',
+        value: formatNumber(savings?.input_tokens),
+        icon: FiCpu,
+        accent: 'indigo',
+      },
+      {
+        label: 'MCP Input Tokens Saved',
+        value: `${formatNumber(savings?.input_tokens_saved)} (${(
+          savings?.input_reduction_pct || 0
         ).toFixed(1)}%)`,
         icon: FiTrendingDown,
         accent: 'emerald',

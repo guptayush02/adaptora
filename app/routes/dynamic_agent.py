@@ -39,6 +39,7 @@ from app.db.database import SessionLocal, get_db
 from app.db.models import (
     DynamicAgentRunLog,
     DynamicToolConnection,
+    McpToolListStat,
     ToolDefinition,
     User,
 )
@@ -909,11 +910,29 @@ async def token_savings(
         for r in reversed(recent_rows)
     ]
 
+    # Input side — the tools/list payload cost (schemas shipped into context).
+    in_stat = (
+        db.query(McpToolListStat)
+        .filter(McpToolListStat.user_id == current_user.id)
+        .first()
+    )
+    in_raw = int(in_stat.input_raw_tokens or 0) if in_stat else 0
+    in_sent = int(in_stat.input_sent_tokens or 0) if in_stat else 0
+    in_saved = int(in_stat.input_saved or 0) if in_stat else 0
+    tool_count = int(in_stat.tool_count or 0) if in_stat else 0
+
     return {
+        # Output side — per-call MCP response compaction.
         "tokens_saved": saved,
         "raw_tokens": raw,
         "sent_tokens": sent,
         "calls": calls,
         "reduction_pct": round((1 - sent / raw) * 100, 1) if raw else 0.0,
         "recent": recent,
+        # Input side — tools/list schema cost.
+        "input_tokens": in_sent,
+        "input_raw_tokens": in_raw,
+        "input_tokens_saved": in_saved,
+        "input_reduction_pct": round((1 - in_sent / in_raw) * 100, 1) if in_raw else 0.0,
+        "tool_count": tool_count,
     }

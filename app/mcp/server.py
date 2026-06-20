@@ -68,6 +68,7 @@ from app.db.database import SessionLocal, init_db  # noqa: E402
 from app.db.models import (  # noqa: E402
     DynamicAgentRunLog,
     DynamicToolConnection,
+    McpToolListStat,
     ToolDefinition,
     User,
 )
@@ -400,35 +401,105 @@ def _connected_endpoint_tools(db) -> List[Tool]:
         )
         if not tool_def:
             continue
-        # Reusable preamble — assertively tells Claude this is the path
-        # to use, not Bash/boto3/curl. Without this, Claude defaults to
-        # writing shell or SDK code on requests like "list my S3 buckets"
-        # because its training biases it toward Bash for ops questions.
         svc = conn.tool_name.upper()
         for ep_name, ep in (tool_def.endpoints or {}).items():
             if not isinstance(ep, dict):
                 continue
-            raw_desc = (
-                ep.get("description")
-                or f"{ep.get('method', 'GET')} {ep.get('path', '')}"
-            )
-            description = (
-                f"{raw_desc}. "
-                f"Executes against your authenticated {svc} connection "
-                f"(credentials already saved in the Token Optimizer DB). "
-                f"PREFER this MCP tool over writing boto3 / curl / "
-                f"{conn.tool_name}-cli code — using it ensures the call "
-                f"goes through the user's existing connection without "
-                f"re-prompting for credentials."
-            )
             out.append(
                 Tool(
                     name=_endpoint_tool_name(conn.tool_name, ep_name),
-                    description=description,
+                    description=_endpoint_base_desc(ep) + _LEAN_PREAMBLE.format(svc=svc),
                     inputSchema=_endpoint_input_schema(ep),
                 )
             )
     return out
+
+
+def _endpoint_base_desc(ep: Dict[str, Any]) -> str:
+    return ep.get("description") or f"{ep.get('method', 'GET')} {ep.get('path', '')}"
+
+
+# The preamble still nudges Claude toward the MCP tool (not Bash/curl/SDK),
+# but in ~12 words instead of ~55. Repeated on EVERY connected endpoint, so
+# the saving multiplies by the user's endpoint count — this is the dominant
+# INPUT-token lever. `_VERBOSE_PREAMBLE` is kept only as the accounting
+# baseline (what the old build cost), never sent to a client.
+_LEAN_PREAMBLE = " — runs via your saved {svc} connection; prefer over curl/SDK code."
+_VERBOSE_PREAMBLE = (
+    ". Executes against your authenticated {svc} connection (credentials "
+    "already saved in the Token Optimizer DB). PREFER this MCP tool over "
+    "writing boto3 / curl / cli code — using it ensures the call goes "
+    "through the user's existing connection without re-prompting for credentials."
+)
+
+
+def _tool_tokens(name: str, description: str, schema: Any) -> int:
+    """Token cost of one tool entry in the tools/list payload."""
+    return (
+        count_tokens(name)
+        + count_tokens(description or "")
+        + count_tokens(json.dumps(schema, default=str))
+    )
+
+
+def _record_tool_list_stats(db) -> None:
+    """Measure the INPUT-side cost of the tools/list payload and upsert it for
+    the dashboard. sent = lean (what we ship now); raw = the old verbose
+    per-endpoint preamble baseline. Tool-agnostic — iterates whatever the user
+    has connected. Best-effort; never blocks listing tools."""
+    try:
+        sent = raw = count = 0
+        for t in _meta_tool_defs():  # meta tools are identical in both
+            n = _tool_tokens(t.name, t.description, t.inputSchema)
+            sent += n
+            raw += n
+            count += 1
+        user_id = _resolve_mcp_user_id(db)
+        conns = (
+            db.query(DynamicToolConnection)
+            .filter(
+                DynamicToolConnection.user_id == user_id,
+                DynamicToolConnection.is_active == True,  # noqa: E712
+            )
+            .all()
+        )
+        for conn in conns:
+            tool_def = (
+                db.query(ToolDefinition)
+                .filter(ToolDefinition.name == conn.tool_name)
+                .first()
+            )
+            if not tool_def:
+                continue
+            svc = conn.tool_name.upper()
+            for ep_name, ep in (tool_def.endpoints or {}).items():
+                if not isinstance(ep, dict):
+                    continue
+                name = _endpoint_tool_name(conn.tool_name, ep_name)
+                schema = _endpoint_input_schema(ep)
+                base = _endpoint_base_desc(ep)
+                sent += _tool_tokens(name, base + _LEAN_PREAMBLE.format(svc=svc), schema)
+                raw += _tool_tokens(name, base + _VERBOSE_PREAMBLE.format(svc=svc), schema)
+                count += 1
+        row = (
+            db.query(McpToolListStat)
+            .filter(McpToolListStat.user_id == user_id)
+            .first()
+        )
+        if row is None:
+            row = McpToolListStat(user_id=user_id)
+            db.add(row)
+        row.input_raw_tokens = raw
+        row.input_sent_tokens = sent
+        row.input_saved = max(0, raw - sent)
+        row.tool_count = count
+        db.commit()
+    except Exception as exc:  # pragma: no cover — accounting is non-critical
+        logger.warning(f"tool-list input accounting failed: {exc}")
+        try:
+            db.rollback()
+        except Exception:
+            pass
 
 
 def _ensure_mcp_user(db) -> None:
@@ -649,7 +720,9 @@ def build_mcp_server() -> Server:
         appear in the list automatically — no restart needed."""
         db = SessionLocal()
         try:
-            return _meta_tool_defs() + _connected_endpoint_tools(db)
+            tools = _meta_tool_defs() + _connected_endpoint_tools(db)
+            _record_tool_list_stats(db)
+            return tools
         finally:
             db.close()
 
