@@ -881,10 +881,39 @@ async def token_savings(
         .first()
     )
     saved, raw, sent, calls = int(saved or 0), int(raw or 0), int(sent or 0), int(calls or 0)
+
+    # Recent per-call series for the dashboard's raw-vs-sent comparison chart.
+    recent_rows = (
+        db.query(
+            DynamicAgentRunLog.id,
+            DynamicAgentRunLog.tool_name,
+            DynamicAgentRunLog.raw_tokens,
+            DynamicAgentRunLog.sent_tokens,
+            DynamicAgentRunLog.tokens_saved,
+        )
+        .filter(
+            DynamicAgentRunLog.user_id == current_user.id,
+            DynamicAgentRunLog.raw_tokens > 0,
+        )
+        .order_by(DynamicAgentRunLog.id.desc())
+        .limit(12)
+        .all()
+    )
+    recent = [
+        {
+            "label": f"{r.tool_name or '?'} #{r.id}",
+            "raw": int(r.raw_tokens or 0),
+            "sent": int(r.sent_tokens or 0),
+            "saved": int(r.tokens_saved or 0),
+        }
+        for r in reversed(recent_rows)
+    ]
+
     return {
         "tokens_saved": saved,
         "raw_tokens": raw,
         "sent_tokens": sent,
         "calls": calls,
         "reduction_pct": round((1 - sent / raw) * 100, 1) if raw else 0.0,
+        "recent": recent,
     }

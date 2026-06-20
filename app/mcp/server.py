@@ -35,7 +35,9 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import sys
+from collections import Counter
 from typing import Any, Callable, Dict, List, Optional
 
 # Resolve the project root from this file's location and chdir to it
@@ -529,6 +531,84 @@ def _compact_payload(payload: Any) -> Any:
     return slim
 
 
+# Phase 2 — opt-in aggregation. When the user's prompt signals they want a
+# rollup ("compare", "total", "graph"…) rather than individual rows, we
+# replace large lists with generic stats. This is the big-saving path
+# (~10x vs compaction's ~1.3x) and stays fully tool-agnostic: it profiles
+# whatever fields the records happen to have, never a per-tool field list.
+_SUMMARY_INTENT = re.compile(
+    r"\b(compar|summar|aggregat|total|overall|how many|count|graph|chart|"
+    r"trend|breakdown|overview|distribut|statistic|stats)\b",
+    re.I,
+)
+
+
+def _wants_summary(prompt: Optional[str]) -> bool:
+    return bool(prompt and _SUMMARY_INTENT.search(prompt))
+
+
+def _aggregate_items(items: List[Any]) -> Dict[str, Any]:
+    """Schema-agnostic stats for a list of record dicts. No tool knowledge —
+    profiles whatever fields exist:
+      * categorical fields (strings/bools, 2-8 distinct values) → value counts
+      * numeric fields → sum/min/max, skipping constants (no signal) and
+        epoch/id-like magnitudes (summing a timestamp is meaningless)."""
+    out: Dict[str, Any] = {"count": len(items)}
+    dicts = [x for x in items if isinstance(x, dict)]
+    if not dicts:
+        return out
+    cats: Dict[str, Counter] = {}
+    nums: Dict[str, List[float]] = {}
+    for it in dicts:
+        for k, v in it.items():
+            if isinstance(v, bool):
+                cats.setdefault(k, Counter())[str(v).lower()] += 1
+            elif isinstance(v, (int, float)):
+                nums.setdefault(k, []).append(v)
+            elif isinstance(v, str) and v:
+                cats.setdefault(k, Counter())[v] += 1
+    by = {k: dict(c.most_common()) for k, c in cats.items() if 2 <= len(c) <= 8}
+    totals: Dict[str, Any] = {}
+    for k, vals in nums.items():
+        lo, hi = min(vals), max(vals)
+        if lo == hi:               # constant column — nothing to compare
+            continue
+        if hi >= 1_000_000_000:    # epoch/id-like — a sum would be noise
+            continue
+        totals[k] = {"sum": sum(vals), "min": lo, "max": hi}
+    if by:
+        out["by"] = by
+    if totals:
+        out["totals"] = totals
+    return out
+
+
+def _summarize_response(payload: Any) -> Any:
+    """Collapse any list-of-records under `response` into generic aggregates.
+    Tool-agnostic and lossy by design — only applied when the prompt asks for
+    a rollup. Returns a NEW payload; anything without a sizable list is
+    returned unchanged."""
+    if not isinstance(payload, dict) or payload.get("status") != "success":
+        return payload
+    resp = payload.get("response")
+    if not isinstance(resp, dict):
+        return payload
+    aggregated: Dict[str, Any] = {}
+    changed = False
+    for key, val in resp.items():
+        if isinstance(val, list) and len(val) >= 3 and any(isinstance(x, dict) for x in val):
+            aggregated[key] = _aggregate_items(val)
+            changed = True
+        else:
+            aggregated[key] = val
+    if not changed:
+        return payload
+    slim = {k: v for k, v in payload.items() if k != "response"}
+    slim["response"] = aggregated
+    slim["_summary"] = "aggregated stats — re-ask without summary/compare keywords for full rows"
+    return slim
+
+
 def _record_savings(db, raw: Any, sent: Any) -> None:
     """Persist how many cloud tokens the compaction saved on this response so
     the dashboard can total it. Best-effort: token accounting must NEVER break
@@ -823,7 +903,11 @@ async def _call_run_action(
     if isinstance(result, dict) and result.get("status") == "needs_credentials":
         result = dict(result)
         result["mcp_diagnostic"] = _identity_hint(db, user_id)
-    compact = _compact_payload(result)
+    # Phase 2: if the prompt asks for a rollup, aggregate large lists first
+    # (big saving). Otherwise just compact (safe saving). Accounting compares
+    # the original raw result against whatever we finally send.
+    shaped = _summarize_response(result) if _wants_summary(prompt) else result
+    compact = _compact_payload(shaped)
     _record_savings(db, result, compact)
     return _json_block(compact)
 

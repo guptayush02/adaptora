@@ -385,6 +385,33 @@ function HomePage() {
           </ResponsiveContainer>
         </ChartCard>
 
+        <ChartCard
+          title="MCP response tokens (raw vs sent)"
+          empty={!savings?.recent?.length}
+        >
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={savings?.recent || []}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={0} angle={-25} textAnchor="end" height={60} />
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip />
+              <Legend />
+              <Bar
+                dataKey="raw"
+                name="Raw (before)"
+                fill="#ef4444"
+                radius={[6, 6, 0, 0]}
+              />
+              <Bar
+                dataKey="sent"
+                name="Sent (after)"
+                fill="#10b981"
+                radius={[6, 6, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
         <ChartCard title="Model performance" empty={!stats?.model_stats?.length}>
           <div className="table-wrapper">
             <table className="data-table">

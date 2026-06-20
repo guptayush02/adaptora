@@ -157,8 +157,28 @@ def _ensure_sqlite_schema():
                 connection.execute(text(stmt))
 
 
+def _ensure_postgres_schema():
+    """Additive column migrations for Postgres (the Docker stack uses it).
+
+    ``Base.metadata.create_all`` creates missing TABLES but never adds new
+    COLUMNS to an existing table — so model-level additions (e.g. the
+    response-compaction token columns) need an explicit ALTER. Postgres
+    supports ``ADD COLUMN IF NOT EXISTS``, making these idempotent and safe
+    to run on every startup."""
+    additions = [
+        "ALTER TABLE dynamic_agent_runs ADD COLUMN IF NOT EXISTS raw_tokens INTEGER DEFAULT 0",
+        "ALTER TABLE dynamic_agent_runs ADD COLUMN IF NOT EXISTS sent_tokens INTEGER DEFAULT 0",
+        "ALTER TABLE dynamic_agent_runs ADD COLUMN IF NOT EXISTS tokens_saved INTEGER DEFAULT 0",
+    ]
+    with engine.begin() as connection:
+        for stmt in additions:
+            connection.execute(text(stmt))
+
+
 def init_db():
     """Initialize database tables"""
     Base.metadata.create_all(bind=engine)
     if settings.DATABASE_URL.startswith("sqlite"):
         _ensure_sqlite_schema()
+    else:
+        _ensure_postgres_schema()
