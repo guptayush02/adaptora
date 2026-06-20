@@ -102,7 +102,14 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000
 
 ## Using the MCP Server
 
-The MCP server runs as a subprocess that any MCP client can talk to over JSON-RPC stdio. It's the same Python process whether you're inside Docker or running locally — your AI assistant just launches `python mcp_server.py`.
+The MCP server runs as a subprocess that any MCP client can talk to over JSON-RPC stdio — your AI assistant launches `python mcp_server.py`.
+
+> **Important — the MCP server must talk to the *same* database as your web UI.** It reads credentials/connections by user, so if the two point at different databases, you'll see `User not found` and tools won't connect. Pick the launch style that matches how you run Adaptora:
+>
+> - **Running the full stack with Docker Compose?** The app stores everything in the Postgres container, *not* in a local `token_optimizer.db`. Launch the MCP server **inside the running container** with `docker exec` so it inherits the container's `DATABASE_URL`/`SECRET_KEY`. See [Docker stack](#quickest-path--claude-desktop-docker-stack) below.
+> - **Running locally (no Docker)?** Launch host `python mcp_server.py` directly — it uses the same local SQLite DB the app does. See [Local install](#quickest-path--claude-desktop-local-install) below.
+>
+> A host `python mcp_server.py` started while the stack runs in Docker defaults to an empty local SQLite DB — that mismatch is the #1 cause of `User not found`.
 
 ### What you get
 
@@ -129,11 +136,43 @@ Full step-by-step configs for 8+ clients are in [docs/MCP_CLIENTS.md](./docs/MCP
 - **n8n / make.com** (workflow automation)
 - **Custom Python / TypeScript clients**
 
-### Quickest path — Claude Desktop
+Config file location:
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+> On macOS, quote the path if you `cat`/`cp` it — it contains a space (`Application Support`). Unquoted, the shell splits it into two paths and reads/writes the wrong file.
+
+#### Quickest path — Claude Desktop (Docker stack)
+
+Use this when you brought the stack up with `docker compose up`. The MCP server runs **inside** the `adaptora-app` container, so it automatically inherits the same Postgres `DATABASE_URL` and `SECRET_KEY` as the web app — you only pass your email.
 
 ```jsonc
-// ~/Library/Application Support/Claude/claude_desktop_config.json  (macOS)
-// %APPDATA%\Claude\claude_desktop_config.json                       (Windows)
+{
+  "mcpServers": {
+    "adaptora": {
+      "command": "/usr/local/bin/docker",
+      "args": [
+        "exec", "-i",
+        "-e", "MCP_USER_EMAIL=you@example.com",
+        "adaptora-app",
+        "python", "mcp_server.py"
+      ]
+    }
+  }
+}
+```
+
+Prerequisites: the `adaptora-app` container must be running (`docker ps`), and `MCP_USER_EMAIL` must match an email that exists in the Postgres DB:
+
+```bash
+docker exec -i adaptora-db psql -U tokopt -d tokopt -c "SELECT id, email FROM users;"
+```
+
+#### Quickest path — Claude Desktop (local install)
+
+Use this when you run Adaptora directly on your host (no Docker) — the server shares the app's local SQLite DB.
+
+```jsonc
 {
   "mcpServers": {
     "adaptora": {
