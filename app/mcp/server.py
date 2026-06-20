@@ -61,13 +61,16 @@ from mcp.server.stdio import stdio_server  # noqa: E402
 from mcp.types import TextContent, Tool  # noqa: E402
 
 from app.core.logger import logger  # noqa: E402
+from app.core.tokens import count_tokens  # noqa: E402
 from app.db.database import SessionLocal, init_db  # noqa: E402
 from app.db.models import (  # noqa: E402
+    DynamicAgentRunLog,
     DynamicToolConnection,
     ToolDefinition,
     User,
 )
 from app.services.dynamic_agent_service import (  # noqa: E402
+    _strip_empties,
     dynamic_agent_service,
     warmup_model,
 )
@@ -499,6 +502,62 @@ def _json_block(payload: Any) -> List[TextContent]:
     return [TextContent(type="text", text=json.dumps(payload, indent=2, default=str))]
 
 
+# Adaptora-envelope keys the calling assistant never needs in order to answer.
+# These describe Adaptora's own internal planning, not the tool's data, so the
+# cloud model spends tokens reading them for nothing. Kept ONLY on errors
+# (handled by the success-guard in `_compact_payload`) where they aid debugging.
+_ENVELOPE_NOISE = {"thought", "action_input", "duration_ms", "log_id", "final_answer"}
+
+
+def _compact_payload(payload: Any) -> Any:
+    """Shrink an MCP response before it reaches the cloud model — generically.
+
+    Two passes, BOTH tool-agnostic (no per-tool field lists, no hardcoding):
+      1. Drop Adaptora's envelope metadata (`thought`, timings, …).
+      2. Recursively drop null / empty / blank fields from the tool's own
+         response via the shared `_strip_empties` helper.
+
+    Works identically for every tool a user has connected or will connect in
+    future — Razorpay, Spotify, AWS, or some API discovered tomorrow — because
+    it reasons about JSON shape, not tool identity. Only successful responses
+    are touched; errors pass through untouched so debugging stays easy."""
+    if not isinstance(payload, dict) or payload.get("status") != "success":
+        return payload
+    slim = {k: v for k, v in payload.items() if k not in _ENVELOPE_NOISE}
+    if "response" in slim:
+        slim["response"] = _strip_empties(slim["response"])
+    return slim
+
+
+def _record_savings(db, raw: Any, sent: Any) -> None:
+    """Persist how many cloud tokens the compaction saved on this response so
+    the dashboard can total it. Best-effort: token accounting must NEVER break
+    the actual tool call, so every failure is swallowed."""
+    try:
+        log_id = raw.get("log_id") if isinstance(raw, dict) else None
+        if not log_id:
+            return
+        raw_tokens = count_tokens(json.dumps(raw, default=str))
+        sent_tokens = count_tokens(json.dumps(sent, default=str))
+        row = (
+            db.query(DynamicAgentRunLog)
+            .filter(DynamicAgentRunLog.id == log_id)
+            .first()
+        )
+        if row is None:
+            return
+        row.raw_tokens = raw_tokens
+        row.sent_tokens = sent_tokens
+        row.tokens_saved = max(0, raw_tokens - sent_tokens)
+        db.commit()
+    except Exception as exc:  # pragma: no cover — accounting is non-critical
+        logger.warning(f"token-savings accounting failed: {exc}")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+
+
 def build_mcp_server() -> Server:
     """Construct (but don't start) the MCP server. Pulled out so tests
     can inspect it without running stdio."""
@@ -764,7 +823,9 @@ async def _call_run_action(
     if isinstance(result, dict) and result.get("status") == "needs_credentials":
         result = dict(result)
         result["mcp_diagnostic"] = _identity_hint(db, user_id)
-    return _json_block(result)
+    compact = _compact_payload(result)
+    _record_savings(db, result, compact)
+    return _json_block(compact)
 
 
 async def _call_endpoint_tool(
@@ -819,7 +880,9 @@ async def _call_endpoint_tool(
     if isinstance(result, dict) and result.get("status") == "needs_credentials":
         result = dict(result)
         result["mcp_diagnostic"] = _identity_hint(db, user_id)
-    return _json_block(result)
+    compact = _compact_payload(result)
+    _record_savings(db, result, compact)
+    return _json_block(compact)
 
 
 # ─────────────────────────── runtime entry points ───────────────────────────

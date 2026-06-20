@@ -127,6 +127,19 @@ def _ensure_sqlite_schema():
                 )
             )
 
+    # --- dynamic_agent_runs: add response-compaction token columns (additive) ---
+    if "dynamic_agent_runs" in tables:
+        existing = {col["name"] for col in inspector.get_columns("dynamic_agent_runs")}
+        for col in ("raw_tokens", "sent_tokens", "tokens_saved"):
+            if col not in existing:
+                with engine.begin() as connection:
+                    connection.execute(
+                        text(
+                            f"ALTER TABLE dynamic_agent_runs "
+                            f"ADD COLUMN {col} INTEGER DEFAULT 0"
+                        )
+                    )
+
     # --- tool_definitions: add rate_limits + examples columns (additive) ---
     if "tool_definitions" in tables:
         existing = {col["name"] for col in inspector.get_columns("tool_definitions")}

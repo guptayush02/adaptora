@@ -204,4 +204,13 @@ class DynamicAgentRunLog(Base):
     response_body = Column(Text, nullable=True)
     error = Column(Text, nullable=True)
     duration_ms = Column(Float, default=0.0)
+    # Response-compaction accounting (filled by the MCP transport layer):
+    # raw_tokens   = cloud tokens the un-trimmed response would have cost
+    # sent_tokens  = cloud tokens the compacted response actually costs
+    # tokens_saved = raw_tokens - sent_tokens (>= 0). Summed for the
+    # dashboard's "tokens saved" metric. Tool-agnostic — works for any
+    # connected tool's response shape.
+    raw_tokens = Column(Integer, default=0)
+    sent_tokens = Column(Integer, default=0)
+    tokens_saved = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)

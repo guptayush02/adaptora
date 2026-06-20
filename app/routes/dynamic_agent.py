@@ -31,6 +31,7 @@ import requests as http_requests
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse, StreamingResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.logger import logger
@@ -857,3 +858,33 @@ async def oauth_callback(
 
     logger.info("OAuth2 token stored for user=%s tool=%s", user_id, tool_name)
     return RedirectResponse(url="/?oauth_success=1&tool=" + urllib.parse.quote(tool_name))
+
+
+@router.get("/savings")
+async def token_savings(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Total cloud tokens saved by response-compaction for this user.
+
+    Powers the dashboard's "tokens saved" metric. Aggregates the per-run
+    accounting written by the MCP transport layer — tool-agnostic, so it
+    covers every tool the user has called."""
+    saved, raw, sent, calls = (
+        db.query(
+            func.coalesce(func.sum(DynamicAgentRunLog.tokens_saved), 0),
+            func.coalesce(func.sum(DynamicAgentRunLog.raw_tokens), 0),
+            func.coalesce(func.sum(DynamicAgentRunLog.sent_tokens), 0),
+            func.count(DynamicAgentRunLog.id),
+        )
+        .filter(DynamicAgentRunLog.user_id == current_user.id)
+        .first()
+    )
+    saved, raw, sent, calls = int(saved or 0), int(raw or 0), int(sent or 0), int(calls or 0)
+    return {
+        "tokens_saved": saved,
+        "raw_tokens": raw,
+        "sent_tokens": sent,
+        "calls": calls,
+        "reduction_pct": round((1 - sent / raw) * 100, 1) if raw else 0.0,
+    }

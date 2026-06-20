@@ -25,7 +25,7 @@ import {
   FiRefreshCw,
   FiTrendingDown,
 } from 'react-icons/fi';
-import { queryService } from '../services/api';
+import { queryService, dynamicAgentService } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 
 const RANGE_OPTIONS = [
@@ -75,6 +75,7 @@ function ChartCard({ title, action, children, empty }) {
 function HomePage() {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
+  const [savings, setSavings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     range: '30d',
@@ -101,6 +102,12 @@ function HomePage() {
       console.error('Stats error:', error);
     } finally {
       setLoading(false);
+    }
+    // Response-compaction savings — separate endpoint, never block stats on it.
+    try {
+      setSavings(await dynamicAgentService.getSavings());
+    } catch (error) {
+      console.error('Savings error:', error);
     }
   };
 
@@ -146,8 +153,16 @@ function HomePage() {
         icon: FiTrendingDown,
         accent: 'rose',
       },
+      {
+        label: 'Response Tokens Saved',
+        value: `${formatNumber(savings?.tokens_saved)} (${(
+          savings?.reduction_pct || 0
+        ).toFixed(1)}%)`,
+        icon: FiTrendingDown,
+        accent: 'emerald',
+      },
     ],
-    [stats]
+    [stats, savings]
   );
 
   return (
