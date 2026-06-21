@@ -817,8 +817,8 @@ class LLMProvider:
             lines.append(
                 f"[{i}] \n"
                 f"Title: {r.get('title') or ''}\n"
-                f"Content: {r.get('content') or ''}\n"
-                f"Source: {r.get('url') or ''}"
+                f"Content: {r.get('body') or ''}\n"
+                f"Source: {r.get('href') or ''}"
             )
         return "\n\n".join(lines)
 
@@ -1157,8 +1157,8 @@ class LLMProvider:
         web_sources_payload = []
         for r in results[:5]:
             title = (r.get("title") or "").strip()
-            url = (r.get("url") or "").strip()
-            body = (r.get("content") or "").strip()
+            url = (r.get("href") or "").strip()
+            body = (r.get("body") or "").strip()
             if not title or not url:
                 continue
             web_sources_payload.append({
@@ -1185,7 +1185,7 @@ class LLMProvider:
         citation_lookup_lines = []
         for i, r in enumerate(results[:5], start=1):
             t = (r.get("title") or "").strip().replace("\n", " ")
-            u = (r.get("url") or "").strip()
+            u = (r.get("href") or "").strip()
             if not u:
                 continue
             # Truncate long titles so the prompt's lookup table stays tidy.
@@ -1258,31 +1258,31 @@ class LLMProvider:
         #     "today's search results in front of you."
         # )
 
-        current_user_msg = f"""
-        You are a retrieval-only summarizer.
+        current_user_msg = f"""You are a retrieval-only summarizer. {_current_date_context()}
 
-        Use ONLY the SEARCH RESULTS below.
-        Do not use outside knowledge.
-        Do not invent facts.
-        If a fact is not present, write NOT FOUND.
+Use ONLY the SEARCH RESULTS below to answer. Do not use outside knowledge or your training-data cutoff. Do not invent facts, numbers, dates, or URLs. If a specific fact is not in the results, leave it out — NEVER write placeholder text such as "[insert date]" or "NOT FOUND" in the user-facing answer; just omit what you don't have.
 
-        SEARCH RESULTS:
-        {results_block}
+SEARCH RESULTS:
+{results_block}
 
-        QUESTION:
-        {prompt}
+CITATION TABLE — the ONLY URLs you may cite, copied verbatim:
+{citation_lookup_block}
 
-        Return exactly this markdown:
+QUESTION:
+{prompt}
 
-        ## Quick answer
-        ...
+Write the answer in EXACTLY this markdown structure (fill each section with real content from the results — do not leave dots or blanks):
 
-        ## Overview
-        ...
+## Quick answer
+A direct 3-5 sentence answer drawn only from the search results. After each factual claim, add a citation as a markdown link whose visible text is the source title and whose target is its URL, both copied verbatim from the CITATION TABLE — for example: the result was announced today ([BBC News](https://www.bbc.com/news/article)). If no listed URL fits a claim, omit the citation rather than inventing one.
 
-        ## Key details
-        - ...
-        """
+## Overview
+3-5 more sentences of context, using **bold** for key terms, with the same citation style.
+
+## Key details
+- Up to 8 bullets, each a full sentence covering a distinct fact (dates, numbers, names, quotes), each ending with a citation in the same form.
+
+Do NOT add a "## Sources" section — a verified one is appended automatically. Quote any date or number exactly as it appears in the results."""
 
         self._safe_emit(
             status_callback, "summarizing_results", result_count=len(results)
