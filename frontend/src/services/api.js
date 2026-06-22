@@ -432,13 +432,14 @@ export const dynamicAgentService = {
       .post('/api/dynamic-agent/tools/refresh', { tool })
       .then((r) => r.data),
   streamRefreshTool: streamRefreshTool,
-  listLogs: ({ limit = 50, tool = '', source = '' } = {}) =>
+  listLogs: ({ limit = 50, tool = '', source = '', status = '' } = {}) =>
     api
       .get('/api/dynamic-agent/logs', {
         params: {
           limit,
           ...(tool ? { tool } : {}),
           ...(source ? { source } : {}),
+          ...(status ? { status } : {}),
         },
       })
       .then((r) => r.data),

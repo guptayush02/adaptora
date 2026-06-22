@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { FiRefreshCw, FiList } from 'react-icons/fi';
+import {
+  FiRefreshCw,
+  FiList,
+  FiChevronRight,
+  FiChevronDown,
+  FiAlertTriangle,
+} from 'react-icons/fi';
 import { dynamicAgentService } from '../services/api';
 
 const SOURCES = [
@@ -9,24 +15,158 @@ const SOURCES = [
   { value: 'ui', label: 'Web UI / MCP' },
 ];
 
+const STATUSES = [
+  { value: '', label: 'All statuses' },
+  { value: 'error', label: 'Errors only' },
+  { value: 'success', label: 'Success' },
+  { value: 'needs_credentials', label: 'Needs credentials' },
+  { value: 'needs_tool_setup', label: 'Needs tool setup' },
+];
+
 const STATUS_CLASS = {
-  success: 'badge-success',
-  error: 'badge-danger',
-  needs_credentials: 'badge-warning',
-  needs_tool_setup: 'badge-warning',
+  success: 'log-badge-success',
+  error: 'log-badge-danger',
+  needs_credentials: 'log-badge-warning',
+  needs_tool_setup: 'log-badge-warning',
 };
+
+// Pretty-print a value that may be a JSON string, an object, or plain text.
+function pretty(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'object') return JSON.stringify(value, null, 2);
+  if (typeof value === 'string') {
+    const t = value.trim();
+    if (t.startsWith('{') || t.startsWith('[')) {
+      try {
+        return JSON.stringify(JSON.parse(t), null, 2);
+      } catch {
+        return value;
+      }
+    }
+  }
+  return String(value);
+}
+
+// One labelled block in the expanded detail panel. Skips itself if empty.
+function DetailBlock({ label, value, mono = false, tone }) {
+  const text = mono ? pretty(value) : value;
+  if (text === null || text === undefined || text === '') return null;
+  return (
+    <div className="log-detail-block">
+      <div className="log-detail-label">{label}</div>
+      {mono ? (
+        <pre className={`agent-code ${tone === 'danger' ? 'log-code-danger' : ''}`}>
+          {text}
+        </pre>
+      ) : (
+        <div className="log-detail-body">{text}</div>
+      )}
+    </div>
+  );
+}
+
+function LogRow({ log }) {
+  const [open, setOpen] = useState(false);
+  const isError = log.status === 'error' || !!log.error;
+
+  return (
+    <>
+      <tr
+        className={`log-row ${open ? 'log-row-open' : ''}`}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <td className="log-chevron">
+          {open ? <FiChevronDown /> : <FiChevronRight />}
+        </td>
+        <td>{new Date(log.created_at).toLocaleString()}</td>
+        <td>{log.tool || '—'}</td>
+        <td>
+          {log.source === 'api' ? (
+            <span className="log-badge" title="Developer key">
+              {log.key_label || 'API'}
+            </span>
+          ) : (
+            <span className="log-badge log-badge-muted">UI</span>
+          )}
+        </td>
+        <td>
+          <span className={`log-badge ${STATUS_CLASS[log.status] || ''}`}>
+            {isError && <FiAlertTriangle />}
+            {log.status}
+          </span>
+        </td>
+        <td className="log-prompt" title={log.prompt}>
+          {log.prompt}
+        </td>
+        <td>{Math.round(log.duration_ms)} ms</td>
+      </tr>
+      {open && (
+        <tr className="log-detail-row">
+          <td colSpan={7}>
+            <div className="log-detail">
+              {isError && (
+                <DetailBlock
+                  label="Error"
+                  value={log.error || log.response_body || 'Run failed'}
+                  mono
+                  tone="danger"
+                />
+              )}
+              <div className="log-detail-meta">
+                <span>
+                  <strong>Run #</strong>
+                  {log.id}
+                </span>
+                <span>
+                  <strong>HTTP</strong> {log.http_status ?? '—'}
+                </span>
+                <span>
+                  <strong>Duration</strong> {Math.round(log.duration_ms)} ms
+                </span>
+                <span>
+                  <strong>Lang</strong> {log.language}
+                </span>
+              </div>
+              <DetailBlock label="Prompt" value={log.prompt} mono />
+              <DetailBlock label="Thought (reasoning)" value={log.thought} />
+              <DetailBlock label="Action" value={log.action} mono />
+              <DetailBlock
+                label="Planned request (action input)"
+                value={log.action_input}
+                mono
+              />
+              <DetailBlock
+                label="Raw response body"
+                value={log.response_body}
+                mono
+              />
+              <DetailBlock label="Summary" value={log.summary} />
+              <DetailBlock label="Final answer" value={log.final_answer} />
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
 
 function LogsPage() {
   const [logs, setLogs] = useState([]);
   const [tools, setTools] = useState([]);
   const [tool, setTool] = useState('');
   const [source, setSource] = useState('');
+  const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
 
   const loadLogs = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await dynamicAgentService.listLogs({ limit: 100, tool, source });
+      const data = await dynamicAgentService.listLogs({
+        limit: 100,
+        tool,
+        source,
+        status,
+      });
       setLogs(data || []);
     } catch (err) {
       toast.error('Failed to load logs');
@@ -34,7 +174,7 @@ function LogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [tool, source]);
+  }, [tool, source, status]);
 
   useEffect(() => {
     loadLogs();
@@ -53,8 +193,9 @@ function LogsPage() {
         <div>
           <h1>Logs</h1>
           <p className="page-subtitle">
-            Every agent run on your account. Filter by tool or by where the
-            request came from.
+            Every agent run on your account. Click a row to expand the full
+            trace — reasoning, the planned request, the raw response, and any
+            error — so you can debug failures step by step.
           </p>
         </div>
         <button
@@ -86,6 +227,20 @@ function LogsPage() {
             </select>
           </div>
           <div className="form-group">
+            <label htmlFor="status-filter">Status</label>
+            <select
+              id="status-filter"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              {STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
             <label htmlFor="source-filter">Source</label>
             <select
               id="source-filter"
@@ -112,9 +267,10 @@ function LogsPage() {
           </div>
         ) : (
           <div className="table-wrap">
-            <table className="data-table">
+            <table className="data-table log-table">
               <thead>
                 <tr>
+                  <th aria-label="expand" />
                   <th>Time</th>
                   <th>Tool</th>
                   <th>Source</th>
@@ -125,28 +281,7 @@ function LogsPage() {
               </thead>
               <tbody>
                 {logs.map((r) => (
-                  <tr key={r.id}>
-                    <td>{new Date(r.created_at).toLocaleString()}</td>
-                    <td>{r.tool || '—'}</td>
-                    <td>
-                      {r.source === 'api' ? (
-                        <span className="badge" title="Developer key">
-                          {r.key_label || 'API'}
-                        </span>
-                      ) : (
-                        <span className="badge muted">UI</span>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`badge ${STATUS_CLASS[r.status] || ''}`}>
-                        {r.status}
-                      </span>
-                    </td>
-                    <td className="truncate" title={r.prompt}>
-                      {r.prompt}
-                    </td>
-                    <td>{Math.round(r.duration_ms)} ms</td>
-                  </tr>
+                  <LogRow key={r.id} log={r} />
                 ))}
               </tbody>
             </table>

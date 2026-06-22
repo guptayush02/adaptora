@@ -2746,3 +2746,120 @@ input[type='range']::-moz-range-thumb {
     grid-template-columns: 1fr;
   }
 }
+
+/* ───────────────────────── Logs page ───────────────────────── */
+.table-wrap {
+  overflow-x: auto;
+}
+
+.log-table {
+  table-layout: auto;
+}
+.log-table th[aria-label='expand'] {
+  width: 28px;
+}
+.log-row {
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.log-row:hover {
+  background: var(--color-surface-muted);
+}
+.log-row-open {
+  background: var(--color-surface-muted);
+}
+.log-chevron {
+  color: var(--color-text-subtle);
+  width: 28px;
+  text-align: center;
+}
+.log-prompt {
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+/* Status / source pills */
+.log-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 0.74rem;
+  font-weight: 600;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+.log-badge svg {
+  width: 12px;
+  height: 12px;
+}
+.log-badge-muted {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+.log-badge-success {
+  background: color-mix(in srgb, var(--color-success) 16%, transparent);
+  color: var(--color-success);
+}
+.log-badge-danger {
+  background: color-mix(in srgb, var(--color-danger) 16%, transparent);
+  color: var(--color-danger);
+}
+.log-badge-warning {
+  background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+  color: var(--color-warning);
+}
+
+/* Expanded detail panel */
+.log-detail-row td {
+  padding: 0;
+  background: var(--color-surface-muted);
+}
+.log-detail {
+  padding: 16px 20px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.log-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+.log-detail-meta strong {
+  color: var(--color-text-subtle);
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  margin-right: 5px;
+}
+.log-detail-block {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.log-detail-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+  font-weight: 600;
+}
+.log-detail-body {
+  font-size: 0.9rem;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+.log-code-danger {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+}

@@ -628,6 +628,11 @@ async def list_logs(
     source: Optional[str] = Query(
         None, description="'api' (developer-key runs) or 'ui' (web UI / MCP)"
     ),
+    status: Optional[str] = Query(
+        None,
+        description="Filter by run status, e.g. 'error', 'success'. "
+        "Use 'error' to surface only failed runs for debugging.",
+    ),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -640,6 +645,8 @@ async def list_logs(
         q = q.filter(DynamicAgentRunLog.api_key_id.isnot(None))
     elif source == "ui":
         q = q.filter(DynamicAgentRunLog.api_key_id.is_(None))
+    if status:
+        q = q.filter(DynamicAgentRunLog.status == status)
 
     rows = (
         q.order_by(DynamicAgentRunLog.created_at.desc())
