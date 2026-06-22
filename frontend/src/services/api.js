@@ -47,6 +47,8 @@ export const authService = {
     api.post('/api/auth/developer-keys', { label }).then((r) => r.data),
   listDeveloperKeys: () =>
     api.get('/api/auth/developer-keys').then((r) => r.data),
+  revealDeveloperKey: (keyId) =>
+    api.get(`/api/auth/developer-keys/${keyId}/reveal`).then((r) => r.data),
   revokeDeveloperKey: (keyId) =>
     api.delete(`/api/auth/developer-keys/${keyId}`).then((r) => r.data),
 };

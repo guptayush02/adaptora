@@ -343,6 +343,8 @@ async def create_developer_key(
         user_id=current_user.id,
         label=request.label,
         key_hash=hash_api_key(raw_key),
+        # Reversible copy so the owner can re-reveal/copy the key later.
+        key_encrypted=encrypt_api_key(raw_key),
         # Prefix shown in the dashboard (scheme + first 4 random chars).
         key_prefix=raw_key[: len("adp_live_") + 4],
         last_four=raw_key[-4:],
@@ -388,6 +390,34 @@ async def list_developer_keys(
         )
         for k in keys
     ]
+
+
+@router.get("/developer-keys/{key_id}/reveal")
+async def reveal_developer_key(
+    key_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the raw secret for one of the user's keys so they can copy it
+    again. Only works for keys minted after reversible storage was added."""
+    key = (
+        db.query(DeveloperApiKey)
+        .filter(
+            DeveloperApiKey.id == key_id,
+            DeveloperApiKey.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Developer key not found"
+        )
+    if not key.key_encrypted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This key was created before copy-anytime was supported; create a new key.",
+        )
+    return {"secret_key": decrypt_api_key(key.key_encrypted)}
 
 
 @router.delete("/developer-keys/{key_id}")

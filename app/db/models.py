@@ -50,6 +50,10 @@ class DeveloperApiKey(Base):
     user_id = Column(Integer, index=True)
     label = Column(String)  # human name for the key / project
     key_hash = Column(String, unique=True, index=True)  # sha256 hex of the raw key
+    # Reversible copy of the raw key so the owner can re-copy it from the
+    # dashboard at any time. Auth still verifies against key_hash (fast,
+    # indexed); this column exists purely for the "copy key" convenience.
+    key_encrypted = Column(String, nullable=True)
     key_prefix = Column(String)  # e.g. "adp_live_ab12" — safe to display
     last_four = Column(String)  # last 4 chars of the raw key
     is_active = Column(Boolean, default=True)

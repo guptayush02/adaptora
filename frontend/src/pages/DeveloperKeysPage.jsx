@@ -72,6 +72,18 @@ function DeveloperKeysPage() {
     toast.success('Copied to clipboard');
   };
 
+  const handleCopyExisting = async (keyId) => {
+    try {
+      const { secret_key } = await authService.revealDeveloperKey(keyId);
+      copy(secret_key);
+    } catch (err) {
+      toast.error(
+        err.response?.data?.detail || 'Could not reveal this key'
+      );
+      console.error(err);
+    }
+  };
+
   const curlSnippet = (secret) =>
     `curl -X POST ${apiBase}/api/v1/run \\\n` +
     `  -H "Authorization: Bearer ${secret}" \\\n` +
@@ -145,7 +157,12 @@ function DeveloperKeysPage() {
                 disabled={formLoading}
               />
             </div>
-            <button type="submit" className="btn btn-primary" disabled={formLoading}>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={formLoading}
+              style={{ marginTop: '1rem' }}
+            >
               {formLoading ? 'Creating…' : 'Create key'}
             </button>
           </form>
@@ -187,19 +204,49 @@ function DeveloperKeysPage() {
                   </div>
                 </div>
                 {k.is_active && (
-                  <button
-                    type="button"
-                    className="btn btn-danger btn-icon btn-sm"
-                    onClick={() => handleRevoke(k.id)}
-                  >
-                    <FiTrash2 />
-                    <span>Revoke</span>
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-icon btn-sm"
+                      onClick={() => handleCopyExisting(k.id)}
+                    >
+                      <FiCopy />
+                      <span>Copy</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-icon btn-sm"
+                      onClick={() => handleRevoke(k.id)}
+                    >
+                      <FiTrash2 />
+                      <span>Revoke</span>
+                    </button>
+                  </div>
                 )}
               </li>
             ))}
           </ul>
         )}
+      </div>
+
+      <div className="card">
+        <h2 className="card-title">cURL integration example</h2>
+        <p className="muted">
+          Replace <code>adp_live_YOUR_KEY</code> with one of your keys (use the{' '}
+          <strong>Copy</strong> button above), then call the agent from anywhere:
+        </p>
+        <div className="input-with-action" style={{ alignItems: 'flex-start' }}>
+          <pre className="code-block" style={{ whiteSpace: 'pre-wrap', flex: 1, margin: 0 }}>
+            {curlSnippet('adp_live_YOUR_KEY')}
+          </pre>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => copy(curlSnippet('adp_live_YOUR_KEY'))}
+          >
+            <FiCopy /> Copy
+          </button>
+        </div>
       </div>
 
       <div className="card info-card">

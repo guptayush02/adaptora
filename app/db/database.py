@@ -150,6 +150,17 @@ def _ensure_sqlite_schema():
                     )
                 )
 
+    # --- developer_api_keys: add reversible key_encrypted column (additive) ---
+    if "developer_api_keys" in tables:
+        existing = {col["name"] for col in inspector.get_columns("developer_api_keys")}
+        if "key_encrypted" not in existing:
+            with engine.begin() as connection:
+                connection.execute(
+                    text(
+                        "ALTER TABLE developer_api_keys ADD COLUMN key_encrypted VARCHAR"
+                    )
+                )
+
     # --- tool_definitions: add rate_limits + examples columns (additive) ---
     if "tool_definitions" in tables:
         existing = {col["name"] for col in inspector.get_columns("tool_definitions")}
@@ -180,6 +191,7 @@ def _ensure_postgres_schema():
         "ALTER TABLE dynamic_agent_runs ADD COLUMN IF NOT EXISTS sent_tokens INTEGER DEFAULT 0",
         "ALTER TABLE dynamic_agent_runs ADD COLUMN IF NOT EXISTS tokens_saved INTEGER DEFAULT 0",
         "ALTER TABLE dynamic_agent_runs ADD COLUMN IF NOT EXISTS api_key_id INTEGER",
+        "ALTER TABLE developer_api_keys ADD COLUMN IF NOT EXISTS key_encrypted VARCHAR",
     ]
     with engine.begin() as connection:
         for stmt in additions:
