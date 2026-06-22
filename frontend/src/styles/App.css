@@ -2863,3 +2863,37 @@ input[type='range']::-moz-range-thumb {
   color: var(--color-danger);
   background: color-mix(in srgb, var(--color-danger) 8%, transparent);
 }
+
+/* Logs — live tail controls */
+.log-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.log-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+  display: inline-block;
+}
+.log-live-dot-on {
+  background: #fff;
+  opacity: 1;
+  box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+  animation: log-live-pulse 1.6s infinite;
+}
+@keyframes log-live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6); }
+  70% { box-shadow: 0 0 0 6px rgba(255, 255, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+/* Brief highlight when a new run streams in */
+.log-row-new td {
+  animation: log-row-flash 2.2s ease-out;
+}
+@keyframes log-row-flash {
+  0% { background: var(--color-primary-soft); }
+  100% { background: transparent; }
+}

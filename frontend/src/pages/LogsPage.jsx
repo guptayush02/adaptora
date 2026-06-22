@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import {
   FiRefreshCw,
@@ -65,14 +65,14 @@ function DetailBlock({ label, value, mono = false, tone }) {
   );
 }
 
-function LogRow({ log }) {
+function LogRow({ log, flash }) {
   const [open, setOpen] = useState(false);
   const isError = log.status === 'error' || !!log.error;
 
   return (
     <>
       <tr
-        className={`log-row ${open ? 'log-row-open' : ''}`}
+        className={`log-row ${open ? 'log-row-open' : ''} ${flash ? 'log-row-new' : ''}`}
         onClick={() => setOpen((v) => !v)}
       >
         <td className="log-chevron">
@@ -157,28 +157,63 @@ function LogsPage() {
   const [source, setSource] = useState('');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
+  const [live, setLive] = useState(true);
+  const [flashIds, setFlashIds] = useState(() => new Set());
+  // Prevents overlapping polls if a request is slow.
+  const inFlight = useRef(false);
+  // Run ids we've already shown, so a live poll can flag genuinely new ones.
+  const seenIds = useRef(new Set());
 
-  const loadLogs = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await dynamicAgentService.listLogs({
-        limit: 100,
-        tool,
-        source,
-        status,
-      });
-      setLogs(data || []);
-    } catch (err) {
-      toast.error('Failed to load logs');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [tool, source, status]);
+  // `silent` refreshes (the live poll) skip the loading spinner so the table
+  // doesn't flicker, and surface a toast only on the very first failure. On a
+  // silent poll we briefly highlight rows that weren't there before.
+  const loadLogs = useCallback(
+    async ({ silent = false } = {}) => {
+      if (inFlight.current) return;
+      inFlight.current = true;
+      if (!silent) setLoading(true);
+      try {
+        const data = await dynamicAgentService.listLogs({
+          limit: 100,
+          tool,
+          source,
+          status,
+        });
+        const rows = data || [];
+        if (silent) {
+          const fresh = rows
+            .filter((r) => !seenIds.current.has(r.id))
+            .map((r) => r.id);
+          if (fresh.length) setFlashIds(new Set(fresh));
+        }
+        rows.forEach((r) => seenIds.current.add(r.id));
+        setLogs(rows);
+      } catch (err) {
+        if (!silent) toast.error('Failed to load logs');
+        console.error(err);
+      } finally {
+        inFlight.current = false;
+        if (!silent) setLoading(false);
+      }
+    },
+    [tool, source, status]
+  );
 
+  // Re-fetch whenever filters change (with spinner).
   useEffect(() => {
     loadLogs();
   }, [loadLogs]);
+
+  // Live tail: poll the shared DB every few seconds. Reads completed runs from
+  // every source (web UI, public /api/v1, and the separate MCP server process),
+  // which an in-process push could not. Pauses when the tab is hidden.
+  useEffect(() => {
+    if (!live) return undefined;
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') loadLogs({ silent: true });
+    }, 4000);
+    return () => clearInterval(id);
+  }, [live, loadLogs]);
 
   useEffect(() => {
     dynamicAgentService
@@ -198,15 +233,26 @@ function LogsPage() {
             error — so you can debug failures step by step.
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-ghost btn-icon"
-          onClick={loadLogs}
-          disabled={loading}
-        >
-          <FiRefreshCw />
-          <span>Refresh</span>
-        </button>
+        <div className="log-header-actions">
+          <button
+            type="button"
+            className={`btn btn-icon ${live ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setLive((v) => !v)}
+            title={live ? 'Live updates on — click to pause' : 'Click to resume live updates'}
+          >
+            <span className={`log-live-dot ${live ? 'log-live-dot-on' : ''}`} />
+            <span>{live ? 'Live' : 'Paused'}</span>
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon"
+            onClick={() => loadLogs()}
+            disabled={loading}
+          >
+            <FiRefreshCw />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
       <div className="card">
@@ -281,7 +327,7 @@ function LogsPage() {
               </thead>
               <tbody>
                 {logs.map((r) => (
-                  <LogRow key={r.id} log={r} />
+                  <LogRow key={r.id} log={r} flash={flashIds.has(r.id)} />
                 ))}
               </tbody>
             </table>
