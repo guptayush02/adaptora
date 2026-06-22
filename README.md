@@ -310,10 +310,23 @@ pipeline step as a [Server-Sent Event](https://developer.mozilla.org/en-US/docs/
 the moment it happens — then render the agent's progress in your own UI. Same
 request body as `/api/v1/run`.
 
-It emits one `step` event per stage (`received` → `identifying_tool` →
-`tool_identified` → `looking_up_docs` → `checking_connection` →
-`planning_action` → `executing` → `summarizing`), then a final `done` event
-whose `data` is the full `RunResponse` shape shown above (or an `error` event).
+**Event types** — every frame is a standard SSE block (`event:` line + `data:`
+line of JSON). The stream always ends with **exactly one** terminal event —
+either `done` or `error` — so you can reliably close your reader and finalize
+your UI when one arrives:
+
+| `event:` | When | `data` payload |
+|---|---|---|
+| `step` | Once per pipeline stage, in order | `{ "step": "...", "run_uid": "...", "data": { ... } }` |
+| `done` | Run finished successfully | The full `RunResponse` object (same shape as `/api/v1/run` above) |
+| `error` | Run failed | `{ "error": "message" }` |
+
+The `step` values arrive in this order (some may be skipped depending on the
+run): `received` → `identifying_tool` → `tool_identified` → `looking_up_docs`
+→ `checking_connection` → `planning_action` → `executing` → `summarizing`.
+The `run_uid` is the same on every event of a run — use it to group events if
+you fire several runs concurrently. Stage-specific details ride along in
+`data` (e.g. `{"tool": "github"}` on `tool_identified`).
 
 ```bash
 curl -N -X POST http://localhost:8000/api/v1/run/stream \
@@ -365,6 +378,32 @@ while (true) {
     if (event === "done") console.log("result:", data);
   }
 }
+```
+
+```python
+# Python — stream events with httpx (pip install httpx)
+import json
+import httpx
+
+with httpx.stream(
+    "POST",
+    "http://localhost:8000/api/v1/run/stream",
+    headers={"Authorization": "Bearer adp_live_YOUR_KEY"},
+    json={"prompt": "list my open github issues"},
+    timeout=None,
+) as resp:
+    event = None
+    for line in resp.iter_lines():
+        if line.startswith("event:"):
+            event = line[6:].strip()
+        elif line.startswith("data:"):
+            data = json.loads(line[5:].strip())
+            if event == "step":
+                print("step:", data["step"], data.get("data"))
+            elif event == "done":
+                print("result:", data)
+            elif event == "error":
+                print("error:", data["error"])
 ```
 
 > A keepalive comment is sent every 15 s so proxies (ALB / nginx / CloudFront)
