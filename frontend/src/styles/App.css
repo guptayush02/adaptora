@@ -2898,6 +2898,18 @@ input[type='range']::-moz-range-thumb {
   100% { background: transparent; }
 }
 
+/* Logs — paginated "Load more" footer */
+.log-load-more {
+  display: flex;
+  justify-content: center;
+  padding: 14px 0 4px;
+}
+.log-load-more .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* Logs — in-flight run rendered as a live table row */
 .log-row-live td {
   background: var(--color-primary-soft);

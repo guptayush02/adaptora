@@ -485,11 +485,12 @@ export const dynamicAgentService = {
       .post('/api/dynamic-agent/tools/refresh', { tool })
       .then((r) => r.data),
   streamRefreshTool: streamRefreshTool,
-  listLogs: ({ limit = 50, tool = '', source = '', status = '' } = {}) =>
+  listLogs: ({ limit = 50, offset = 0, tool = '', source = '', status = '' } = {}) =>
     api
       .get('/api/dynamic-agent/logs', {
         params: {
           limit,
+          ...(offset ? { offset } : {}),
           ...(tool ? { tool } : {}),
           ...(source ? { source } : {}),
           ...(status ? { status } : {}),

@@ -259,6 +259,17 @@ async def run_stream(
             )
             _tag_run_with_key(worker_db, result.get("log_id"), key_id)
             result_box["response"] = result
+            # Terminal step so the dashboard's live row marks the run complete
+            # and retires it — mirrors the non-streaming /run. Without this the
+            # live row stays stuck on the last pipeline step forever.
+            emit_status(
+                "done",
+                {
+                    "log_id": result.get("log_id"),
+                    "status": result.get("status"),
+                    "tool": result.get("tool"),
+                },
+            )
         except Exception as exc:
             logger.exception("public /run/stream pipeline failed")
             result_box["error"] = str(exc)

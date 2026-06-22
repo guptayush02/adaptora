@@ -268,6 +268,20 @@ function LogRow({ log, flash }) {
   );
 }
 
+// Rows fetched per page (initial load, live-poll window, and each "Load more").
+const PAGE_SIZE = 50;
+
+// Combine row sets into one newest-first list, deduped by id. Lets a live poll
+// merge the freshest page into already-loaded older pages without dropping them
+// or showing a row twice.
+function mergeRows(existing, incoming) {
+  const byId = new Map(existing.map((r) => [r.id, r]));
+  incoming.forEach((r) => byId.set(r.id, r));
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(b.created_at) - new Date(a.created_at)
+  );
+}
+
 function LogsPage() {
   const [logs, setLogs] = useState([]);
   const [tools, setTools] = useState([]);
@@ -275,6 +289,9 @@ function LogsPage() {
   const [source, setSource] = useState('');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  // Whether the last page came back full — i.e. there may be older rows.
+  const [hasMore, setHasMore] = useState(false);
   const [live, setLive] = useState(true);
   const [flashIds, setFlashIds] = useState(() => new Set());
   // In-flight runs keyed by run_uid, streamed step-by-step over SSE.
@@ -283,21 +300,34 @@ function LogsPage() {
   const inFlight = useRef(false);
   // Run ids we've already shown, so a live poll can flag genuinely new ones.
   const seenIds = useRef(new Set());
+  // Current loaded count, read when paging so "Load more" knows its offset
+  // without making loadLogs depend on (and churn with) the logs array.
+  const logsLenRef = useRef(0);
   // Latest loadLogs, so the (stable) step handler can refresh without
   // forcing the SSE connection to reconnect on every filter change.
   const loadLogsRef = useRef(null);
 
-  // `silent` refreshes (the live poll) skip the loading spinner so the table
-  // doesn't flicker, and surface a toast only on the very first failure. On a
-  // silent poll we briefly highlight rows that weren't there before.
+  useEffect(() => {
+    logsLenRef.current = logs.length;
+  }, [logs]);
+
+  // Three modes:
+  //   • initial / filter change — replace the list with the newest page.
+  //   • silent (live poll, every 4 s) — fetch the newest page and merge it in,
+  //     keeping any older pages already loaded; flag genuinely new rows and
+  //     skip the spinner so the table doesn't flicker.
+  //   • append ("Load more") — fetch the next older page and merge it in.
   const loadLogs = useCallback(
-    async ({ silent = false } = {}) => {
+    async ({ silent = false, append = false } = {}) => {
       if (inFlight.current) return;
       inFlight.current = true;
-      if (!silent) setLoading(true);
+      if (append) setLoadingMore(true);
+      else if (!silent) setLoading(true);
       try {
+        const offset = append ? logsLenRef.current : 0;
         const data = await dynamicAgentService.listLogs({
-          limit: 100,
+          limit: PAGE_SIZE,
+          offset,
           tool,
           source,
           status,
@@ -310,13 +340,22 @@ function LogsPage() {
           if (fresh.length) setFlashIds(new Set(fresh));
         }
         rows.forEach((r) => seenIds.current.add(r.id));
-        setLogs(rows);
+        if (silent) {
+          setLogs((prev) => mergeRows(prev, rows));
+        } else if (append) {
+          setLogs((prev) => mergeRows(prev, rows));
+          setHasMore(rows.length === PAGE_SIZE);
+        } else {
+          setLogs(rows);
+          setHasMore(rows.length === PAGE_SIZE);
+        }
       } catch (err) {
         if (!silent) toast.error('Failed to load logs');
         console.error(err);
       } finally {
         inFlight.current = false;
-        if (!silent) setLoading(false);
+        if (append) setLoadingMore(false);
+        else if (!silent) setLoading(false);
       }
     },
     [tool, source, status]
@@ -537,6 +576,24 @@ function LogsPage() {
                 ))}
               </tbody>
             </table>
+            {hasMore && (
+              <div className="log-load-more">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => loadLogs({ append: true })}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? (
+                    <>
+                      <FiLoader className="live-spin" /> Loading…
+                    </>
+                  ) : (
+                    'Load more'
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

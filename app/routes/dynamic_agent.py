@@ -624,6 +624,7 @@ async def refresh_tool_stream(
 @router.get("/logs", response_model=List[RunLogItem])
 async def list_logs(
     limit: int = 50,
+    offset: int = Query(0, ge=0, description="Rows to skip — for pagination"),
     tool: Optional[str] = Query(None, description="Filter by tool name"),
     source: Optional[str] = Query(
         None, description="'api' (developer-key runs) or 'ui' (web UI / MCP)"
@@ -650,6 +651,7 @@ async def list_logs(
 
     rows = (
         q.order_by(DynamicAgentRunLog.created_at.desc())
+        .offset(max(offset, 0))
         .limit(min(max(limit, 1), 200))
         .all()
     )
