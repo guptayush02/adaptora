@@ -170,6 +170,67 @@ Prerequisites: the `adaptora-app` container must be running (`docker ps`), and `
 docker exec -i adaptora-db psql -U tokopt -d tokopt -c "SELECT id, email FROM users;"
 ```
 
+#### Adaptora running on a remote server (VPS / cloud) — connect over SSH
+
+The configs above launch the MCP server on your **own computer**. But if you've
+deployed Adaptora on a remote machine (a DigitalOcean droplet, an AWS EC2
+instance, a Hetzner VPS, your office server…), your AI assistant still runs on
+your laptop — and it can't reach the server's database directly. Launching a
+**local** `mcp_server.py` would talk to an empty local database and fail with
+`User not found`.
+
+The fix: tell your assistant to start the MCP server **on the remote machine,
+over SSH**. SSH is the standard, secure way to run a command on another
+computer; it carries the MCP messages back and forth over the same encrypted
+connection your assistant already needs. No code changes, no extra ports to
+open — if you can `ssh` into the box, this works.
+
+```jsonc
+{
+  "mcpServers": {
+    "adaptora": {
+      "command": "ssh",
+      "args": [
+        "user@your-server.com",
+        "docker", "exec", "-i",
+        "-e", "MCP_USER_EMAIL=you@example.com",
+        "adaptora-app",
+        "python", "mcp_server.py"
+      ]
+    }
+  }
+}
+```
+
+**What is `user@your-server.com`?** It's the exact same thing you type to log
+into your server with SSH — `ssh user@your-server.com` — split into two parts:
+
+| Part | What it means | Examples |
+|---|---|---|
+| `user` (before the `@`) | Your **login username** on the server | `ubuntu` (common on AWS), `root`, `ayush` |
+| `your-server.com` (after the `@`) | The server's **address** — its domain name *or* its public IP address | `adaptora.mycompany.com`, `203.0.113.42` |
+
+So if you log into your server with `ssh ubuntu@203.0.113.42`, then you'd write
+`"ubuntu@203.0.113.42"` on that first line. Don't copy `user@your-server.com`
+literally — replace it with your real values.
+
+**Before this works, check three things:**
+
+1. **You can SSH in without typing a password.** Your assistant runs `ssh`
+   unattended, so it can't answer a password prompt. Set up key-based login
+   ([GitHub's SSH key guide](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)
+   works for any server) and confirm `ssh user@your-server.com` logs you in
+   with no prompt.
+2. **The `adaptora-app` container is running on the server.** SSH in and run
+   `docker ps` — you should see `adaptora-app`.
+3. **`MCP_USER_EMAIL` matches a real account.** Check on the server with the
+   `psql` command shown just above.
+
+> Not using Docker on the server? Replace the `docker exec …` part with the
+> path to the remote Python and script, e.g.
+> `"user@your-server.com", "/path/to/adaptora/venv/bin/python", "/path/to/adaptora/mcp_server.py"`,
+> and move `MCP_USER_EMAIL` into an SSH-set env var or the command itself.
+
 #### Quickest path — Claude Desktop (local install)
 
 Use this when you run Adaptora directly on your host (no Docker) — the server shares the app's local SQLite DB.
