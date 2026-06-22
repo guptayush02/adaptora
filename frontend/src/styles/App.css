@@ -2898,38 +2898,34 @@ input[type='range']::-moz-range-thumb {
   100% { background: transparent; }
 }
 
-/* Logs — live execution panel */
-.live-panel {
-  border-color: var(--color-primary);
+/* Logs — in-flight run rendered as a live table row */
+.log-row-live td {
+  background: var(--color-primary-soft);
 }
-.live-run-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.log-row-live:hover td {
+  background: var(--color-primary-soft);
 }
-.live-run {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
-  background: var(--color-surface-muted);
-}
-.live-run-done {
-  opacity: 0.85;
-}
-.live-run-head {
-  display: flex;
+.live-now {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-size: 0.95rem;
-}
-.live-run-head svg {
+  gap: 6px;
   color: var(--color-primary);
+  font-weight: 600;
+}
+.live-now .log-live-dot-on {
+  background: var(--color-primary);
+}
+.log-badge-running {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 .live-steps {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
   gap: 4px;

@@ -11,7 +11,8 @@ A self-hosted Dynamic API Agent with an MCP (Model Context Protocol) layer on to
 - **Dynamic Tool Discovery** — Type a tool name (`github`, `stripe`, `shopify`, `notion`, …) or describe what you want to do, and the agent fetches its docs, OpenAPI spec, and rate limits automatically. Curated seed tools (github, aws, stripe, slack, notion, openai, razorpay, linear, gmail) ship pre-configured.
 - **Multi-source doc fetching** — Web search + OpenAPI spec probing (24+ URL patterns) + native parsing + LLM extraction, merged with method/path deduplication. Refreshing `github` grows from 5 → 120+ endpoints; AWS uses local `boto3` introspection for 49+.
 - **MCP Server** — Exposes the agent over the Model Context Protocol. Every connected tool's endpoints become typed MCP tools your AI assistant can call directly.
-- **REST API + developer keys** — Mint a secret key on the dashboard and call Adaptora from any project in any language (`POST /api/v1/run` with `Authorization: Bearer adp_live_…`). Every call runs against your saved connections and is logged, tagged by key and tool, on the dashboard.
+- **REST API + developer keys** — Mint a secret key on the dashboard and call Adaptora from any project in any language (`POST /api/v1/run` with `Authorization: Bearer adp_live_…`). Every call runs against your saved connections and is logged, tagged by key and tool, on the dashboard. A streaming variant (`POST /api/v1/run/stream`, Server-Sent Events) emits each pipeline step as it happens so you can render the agent's progress live in your own UI.
+- **Live execution logs** — The dashboard **Logs** page tails every run from every source (Web UI, MCP, and `/api/v1`) in real time over SSE. In-flight runs appear as a live row at the top of the table that updates step-by-step, then settle into the completed-run history once done.
 - **Authenticated chat UI** — React frontend with per-user encrypted credential storage (AES), conversation history, streaming SSE responses, and a "Cached Tools" page with live refresh progress.
 - **Token tracking & caching** — Tracks every model call, caches identical prompts, routes simple queries to local Ollama and complex ones to Claude/GPT (optional).
 - **One-command Docker deploy** — 4-container stack (app, Postgres, Redis, Ollama) wired with healthchecks and persistent volumes.
@@ -301,10 +302,81 @@ If you haven't connected the target tool yet, `status` is `needs_credentials` �
 connect it once in the web UI (see [Connecting OAuth2
 Tools](#connecting-oauth2-tools-spotify-github-notion-google-slack)), then retry.
 
-### 3. See your logs
+### 3. Stream the run live — `POST /api/v1/run/stream`
+
+A slow run (cold Ollama, a multi-step plan) can take seconds. Instead of waiting
+for the single JSON response, hit the **streaming** endpoint to receive each
+pipeline step as a [Server-Sent Event](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events)
+the moment it happens — then render the agent's progress in your own UI. Same
+request body as `/api/v1/run`.
+
+It emits one `step` event per stage (`received` → `identifying_tool` →
+`tool_identified` → `looking_up_docs` → `checking_connection` →
+`planning_action` → `executing` → `summarizing`), then a final `done` event
+whose `data` is the full `RunResponse` shape shown above (or an `error` event).
+
+```bash
+curl -N -X POST http://localhost:8000/api/v1/run/stream \
+  -H "Authorization: Bearer adp_live_YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "list my open github issues"}'
+```
+
+```
+event: step
+data: {"step": "identifying_tool", "run_uid": "a1b2…", "data": {}}
+
+event: step
+data: {"step": "tool_identified", "run_uid": "a1b2…", "data": {"tool": "github"}}
+
+event: step
+data: {"step": "executing", "run_uid": "a1b2…", "data": {}}
+
+event: done
+data: {"log_id": 121, "status": "success", "tool": "github", "summary": "You have 7 open issues…", ...}
+```
+
+```javascript
+// Node.js — parse the SSE stream as it arrives
+const resp = await fetch("http://localhost:8000/api/v1/run/stream", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer adp_live_YOUR_KEY",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ prompt: "list my open github issues" }),
+});
+
+const reader = resp.body.getReader();
+const decoder = new TextDecoder();
+let buffer = "";
+while (true) {
+  const { value, done } = await reader.read();
+  if (done) break;
+  buffer += decoder.decode(value, { stream: true });
+  let sep;
+  while ((sep = buffer.indexOf("\n\n")) !== -1) {
+    const frame = buffer.slice(0, sep);
+    buffer = buffer.slice(sep + 2);
+    if (frame.startsWith(":")) continue; // keepalive comment
+    const event = frame.match(/event: (.*)/)?.[1];
+    const data = JSON.parse(frame.match(/data: (.*)/s)?.[1] || "{}");
+    if (event === "step") console.log("step:", data.step, data.data);
+    if (event === "done") console.log("result:", data);
+  }
+}
+```
+
+> A keepalive comment is sent every 15 s so proxies (ALB / nginx / CloudFront)
+> don't drop the connection during a long run. Use `curl -N` to disable curl's
+> own buffering and see events as they stream.
+
+### 4. See your logs
 
 Every API call is recorded under **Logs** in the dashboard, tagged with the key
-that made it and the tool it hit. Filter by **tool** or by **source**
+that made it and the tool it hit — and runs triggered over the API show up there
+**live**, streaming step-by-step as a row at the top of the table even while the
+`curl` is still in flight. Filter by **tool** or by **source**
 (`API` vs `Web UI / MCP`) to find a specific call. Use a separate key per
 project/environment so you can tell their traffic apart at a glance.
 
@@ -319,7 +391,8 @@ project/environment so you can tell their traffic apart at a glance.
 ```
                 ┌──────────────────────────────────────┐
                 │           Frontend (React)           │
-                │   Chat • Cached Tools • Settings     │
+                │  Chat • Cached Tools • Logs (live)   │
+                │     Developer Keys • Settings        │
                 └─────────────────┬────────────────────┘
                                   │ HTTPS (same origin)
                                   ▼

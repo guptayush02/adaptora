@@ -6,7 +6,6 @@ import {
   FiChevronRight,
   FiChevronDown,
   FiAlertTriangle,
-  FiActivity,
   FiCheck,
   FiLoader,
 } from 'react-icons/fi';
@@ -96,49 +95,91 @@ function DetailBlock({ label, value, mono = false, tone }) {
   );
 }
 
-// A single in-flight run, rendered as a live step-by-step trace.
-function LiveRun({ run }) {
+// An in-flight run rendered as a live table row. Sits at the top of the log
+// table and updates step-by-step as SSE events arrive; expand it to see the
+// full live trace. When the run finishes it's briefly retired and the polled
+// completed row takes its place.
+function LiveLogRow({ run }) {
+  const [open, setOpen] = useState(true);
   const isError = run.status === 'error';
+  const lastStep = run.steps[run.steps.length - 1];
+  const currentLabel = lastStep
+    ? STEP_LABELS[lastStep.step] || lastStep.step
+    : 'Starting…';
+
   return (
-    <div className={`live-run ${run.done ? 'live-run-done' : ''}`}>
-      <div className="live-run-head">
-        {run.done ? (
-          isError ? <FiAlertTriangle /> : <FiCheck />
-        ) : (
-          <FiLoader className="live-spin" />
-        )}
-        <strong>{run.tool || 'Resolving…'}</strong>
-        {run.source === 'api' && (
-          <span className="log-badge">{run.key_label || 'API'}</span>
-        )}
-        {run.done && (
-          <span className={`log-badge ${STATUS_CLASS[run.status] || ''}`}>
-            {run.status}
+    <>
+      <tr
+        className={`log-row log-row-live ${open ? 'log-row-open' : ''}`}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <td className="log-chevron">
+          {open ? <FiChevronDown /> : <FiChevronRight />}
+        </td>
+        <td>
+          <span className="live-now">
+            <span className="log-live-dot log-live-dot-on" /> now
           </span>
-        )}
-      </div>
-      <ol className="live-steps">
-        {run.steps.map((s, i) => {
-          const last = i === run.steps.length - 1;
-          const pending = last && !run.done;
-          const detail = stepDetail(s);
-          return (
-            <li
-              key={`${s.step}-${i}`}
-              className={pending ? 'live-step-active' : 'live-step-done'}
-            >
-              <span className="live-step-icon">
-                {pending ? <FiLoader className="live-spin" /> : <FiCheck />}
-              </span>
-              <span>
-                {STEP_LABELS[s.step] || s.step}
-                {detail && <span className="live-step-detail"> · {detail}</span>}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
+        </td>
+        <td>{run.tool || 'Resolving…'}</td>
+        <td>
+          {run.source === 'api' ? (
+            <span className="log-badge" title="Developer key">
+              {run.key_label || 'API'}
+            </span>
+          ) : (
+            <span className="log-badge log-badge-muted">UI</span>
+          )}
+        </td>
+        <td>
+          {run.done ? (
+            <span className={`log-badge ${STATUS_CLASS[run.status] || ''}`}>
+              {isError && <FiAlertTriangle />}
+              {run.status}
+            </span>
+          ) : (
+            <span className="log-badge log-badge-running">
+              <FiLoader className="live-spin" /> {currentLabel}
+            </span>
+          )}
+        </td>
+        <td className="log-prompt" title={run.prompt}>
+          {run.prompt || '—'}
+        </td>
+        <td>
+          {run.done ? '' : <FiLoader className="live-spin" />}
+        </td>
+      </tr>
+      {open && (
+        <tr className="log-detail-row">
+          <td colSpan={7}>
+            <ol className="live-steps">
+              {run.steps.map((s, i) => {
+                const last = i === run.steps.length - 1;
+                const pending = last && !run.done;
+                const detail = stepDetail(s);
+                return (
+                  <li
+                    key={`${s.step}-${i}`}
+                    className={pending ? 'live-step-active' : 'live-step-done'}
+                  >
+                    <span className="live-step-icon">
+                      {pending ? <FiLoader className="live-spin" /> : <FiCheck />}
+                    </span>
+                    <span>
+                      {STEP_LABELS[s.step] || s.step}
+                      {detail && (
+                        <span className="live-step-detail"> · {detail}</span>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -306,12 +347,15 @@ function LogsPage() {
           steps: [],
           tool: null,
           status: null,
+          prompt: '',
+          started_at: Date.now(),
           done: false,
         };
       const updated = {
         ...cur,
         steps: [...cur.steps, { step, data }],
         tool: data.tool || cur.tool,
+        prompt: data.prompt || cur.prompt,
         done: finished || cur.done,
         status: step === 'error' ? 'error' : data.status || cur.status,
       };
@@ -414,19 +458,6 @@ function LogsPage() {
         </div>
       </div>
 
-      {liveRuns.size > 0 && (
-        <div className="card live-panel">
-          <h2 className="card-title">
-            <FiActivity /> Live execution
-          </h2>
-          <div className="live-run-list">
-            {Array.from(liveRuns.values()).map((run) => (
-              <LiveRun key={run.run_uid} run={run} />
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="card">
         <div className="form-row">
           <div className="form-group">
@@ -478,7 +509,7 @@ function LogsPage() {
       <div className="card">
         {loading ? (
           <div className="card-empty">Loading logs…</div>
-        ) : logs.length === 0 ? (
+        ) : logs.length === 0 && liveRuns.size === 0 ? (
           <div className="card-empty">
             <FiList className="empty-icon" />
             <p>No logs match these filters.</p>
@@ -498,6 +529,9 @@ function LogsPage() {
                 </tr>
               </thead>
               <tbody>
+                {Array.from(liveRuns.values()).map((run) => (
+                  <LiveLogRow key={run.run_uid} run={run} />
+                ))}
                 {logs.map((r) => (
                   <LogRow key={r.id} log={r} flash={flashIds.has(r.id)} />
                 ))}
