@@ -9,6 +9,7 @@ from app.core.logger import logger
 from app.routes.api import router
 from app.routes.auth import router as auth_router
 from app.routes.dynamic_agent import router as dynamic_agent_router
+from app.routes.developer_api import router as developer_api_router
 from app.db.database import init_db
 
 
@@ -50,6 +51,7 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(auth_router)
 app.include_router(dynamic_agent_router)
+app.include_router(developer_api_router)
 
 
 # Serve the built React app from FastAPI when ./frontend/dist exists.

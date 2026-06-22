@@ -10,6 +10,8 @@ import LandingPage from './pages/LandingPage';
 import HomePage from './pages/HomePage';
 import PromptsPage from './pages/PromptsPage';
 import ApiKeysPage from './pages/ApiKeysPage';
+import DeveloperKeysPage from './pages/DeveloperKeysPage';
+import LogsPage from './pages/LogsPage';
 import SettingsPage from './pages/SettingsPage';
 import DynamicAgentPage from './pages/DynamicAgentPage';
 import ToolsPage from './pages/ToolsPage';
@@ -93,6 +95,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <ToolsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/developer-keys"
+        element={
+          <ProtectedRoute>
+            <DeveloperKeysPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/logs"
+        element={
+          <ProtectedRoute>
+            <LogsPage />
           </ProtectedRoute>
         }
       />

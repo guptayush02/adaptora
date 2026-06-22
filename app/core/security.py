@@ -1,8 +1,15 @@
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from typing import Optional
+import hashlib
+import hmac
+import secrets
 import jwt
 from app.core.config import settings
+
+# Prefix for developer secret keys minted on the dashboard. The `_live_`
+# segment leaves room for a future `_test_` variant without breaking parsing.
+API_KEY_PREFIX = "adp_live_"
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -50,6 +57,25 @@ def decode_token(token: str) -> Optional[dict]:
         return payload
     except jwt.InvalidTokenError:
         return None
+
+
+def generate_api_key() -> str:
+    """Mint a new developer secret key, e.g. ``adp_live_<43 url-safe chars>``.
+
+    Returned raw exactly once at creation — only its sha256 hash is stored."""
+    return f"{API_KEY_PREFIX}{secrets.token_urlsafe(32)}"
+
+
+def hash_api_key(raw_key: str) -> str:
+    """sha256 hex digest of a raw developer key. One-way: bearer secrets must
+    never be recoverable, so unlike provider keys these are hashed, not
+    encrypted."""
+    return hashlib.sha256(raw_key.encode()).hexdigest()
+
+
+def verify_api_key(raw_key: str, stored_hash: str) -> bool:
+    """Constant-time comparison of a presented key against a stored hash."""
+    return hmac.compare_digest(hash_api_key(raw_key), stored_hash or "")
 
 
 def encrypt_api_key(api_key: str) -> str:

@@ -139,6 +139,16 @@ def _ensure_sqlite_schema():
                             f"ADD COLUMN {col} INTEGER DEFAULT 0"
                         )
                     )
+        # api_key_id: attributes a run to the developer key that triggered it
+        # (NULL for UI/MCP runs). Nullable, no default needed.
+        if "api_key_id" not in existing:
+            with engine.begin() as connection:
+                connection.execute(
+                    text(
+                        "ALTER TABLE dynamic_agent_runs "
+                        "ADD COLUMN api_key_id INTEGER"
+                    )
+                )
 
     # --- tool_definitions: add rate_limits + examples columns (additive) ---
     if "tool_definitions" in tables:
@@ -169,6 +179,7 @@ def _ensure_postgres_schema():
         "ALTER TABLE dynamic_agent_runs ADD COLUMN IF NOT EXISTS raw_tokens INTEGER DEFAULT 0",
         "ALTER TABLE dynamic_agent_runs ADD COLUMN IF NOT EXISTS sent_tokens INTEGER DEFAULT 0",
         "ALTER TABLE dynamic_agent_runs ADD COLUMN IF NOT EXISTS tokens_saved INTEGER DEFAULT 0",
+        "ALTER TABLE dynamic_agent_runs ADD COLUMN IF NOT EXISTS api_key_id INTEGER",
     ]
     with engine.begin() as connection:
         for stmt in additions:

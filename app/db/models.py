@@ -35,6 +35,29 @@ class UserAPIKey(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class DeveloperApiKey(Base):
+    """A developer secret key minted on the dashboard.
+
+    Lets an external project drive Adaptora via the public REST API
+    (``POST /api/v1/run``) with ``Authorization: Bearer adp_live_…``,
+    scoped to the owning user. We store ONLY a sha256 hash of the secret —
+    the raw value is shown exactly once at creation and can never be
+    recovered. ``key_prefix`` + ``last_four`` are kept for safe display."""
+
+    __tablename__ = "developer_api_keys"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, index=True)
+    label = Column(String)  # human name for the key / project
+    key_hash = Column(String, unique=True, index=True)  # sha256 hex of the raw key
+    key_prefix = Column(String)  # e.g. "adp_live_ab12" — safe to display
+    last_four = Column(String)  # last 4 chars of the raw key
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_used_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, nullable=True)
+
+
 class TokenUsageRecord(Base):
     """Database model for tracking token usage"""
 
@@ -190,6 +213,10 @@ class DynamicAgentRunLog(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, index=True)
+    # FK-by-id to DeveloperApiKey.id when the run was triggered through the
+    # public REST API. NULL = web UI or MCP. Lets the dashboard attribute
+    # each run to the project (key) that produced it.
+    api_key_id = Column(Integer, index=True, nullable=True)
     language = Column(String, default="en")  # "en" | "hinglish"
     tool_name = Column(String, index=True, nullable=True)
     prompt = Column(Text)

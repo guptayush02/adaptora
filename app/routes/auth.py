@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.db.models import User, UserAPIKey
+from app.db.models import User, UserAPIKey, DeveloperApiKey
 from app.models.auth_schema import (
     UserRegister,
     UserLogin,
@@ -10,6 +10,9 @@ from app.models.auth_schema import (
     TokenResponse,
     APIKeyRequest,
     APIKeyResponse,
+    DeveloperKeyCreate,
+    DeveloperKeyResponse,
+    DeveloperKeyCreateResponse,
 )
 from app.core.security import (
     hash_password,
@@ -18,7 +21,10 @@ from app.core.security import (
     decode_token,
     encrypt_api_key,
     decrypt_api_key,
+    generate_api_key,
+    hash_api_key,
 )
+from datetime import datetime as _dt
 from app.core.logger import logger
 from datetime import timedelta
 from app.services.llm_provider import LLMProvider
@@ -320,6 +326,94 @@ async def delete_api_key(
             detail="Failed to delete API key",
         )
 
+
+
+@router.post("/developer-keys", response_model=DeveloperKeyCreateResponse)
+async def create_developer_key(
+    request: DeveloperKeyCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Mint a developer secret key for the public REST API.
+
+    The raw secret is returned exactly once here — only its hash is stored,
+    so it can never be retrieved again."""
+    raw_key = generate_api_key()
+    key = DeveloperApiKey(
+        user_id=current_user.id,
+        label=request.label,
+        key_hash=hash_api_key(raw_key),
+        # Prefix shown in the dashboard (scheme + first 4 random chars).
+        key_prefix=raw_key[: len("adp_live_") + 4],
+        last_four=raw_key[-4:],
+    )
+    db.add(key)
+    db.commit()
+    db.refresh(key)
+
+    logger.info(f"Developer key minted for user {current_user.username}: {key.label}")
+
+    return DeveloperKeyCreateResponse(
+        id=key.id,
+        label=key.label,
+        key_prefix=key.key_prefix,
+        last_four=key.last_four,
+        is_active=key.is_active,
+        created_at=key.created_at,
+        last_used_at=key.last_used_at,
+        secret_key=raw_key,
+    )
+
+
+@router.get("/developer-keys", response_model=list[DeveloperKeyResponse])
+async def list_developer_keys(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """List the user's developer keys (never the secret)."""
+    keys = (
+        db.query(DeveloperApiKey)
+        .filter(DeveloperApiKey.user_id == current_user.id)
+        .order_by(DeveloperApiKey.created_at.desc())
+        .all()
+    )
+    return [
+        DeveloperKeyResponse(
+            id=k.id,
+            label=k.label,
+            key_prefix=k.key_prefix,
+            last_four=k.last_four,
+            is_active=k.is_active,
+            created_at=k.created_at,
+            last_used_at=k.last_used_at,
+        )
+        for k in keys
+    ]
+
+
+@router.delete("/developer-keys/{key_id}")
+async def revoke_developer_key(
+    key_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Revoke (deactivate) a developer key. Calls using it then 401."""
+    key = (
+        db.query(DeveloperApiKey)
+        .filter(
+            DeveloperApiKey.id == key_id,
+            DeveloperApiKey.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Developer key not found"
+        )
+    key.is_active = False
+    key.revoked_at = _dt.utcnow()
+    db.commit()
+    logger.info(f"Developer key revoked for user {current_user.username}: {key.label}")
+    return {"message": "Developer key revoked"}
 
 
 @router.post("/models")

@@ -42,6 +42,13 @@ export const authService = {
     api.delete(`/api/auth/api-keys/${keyId}`).then((response) => response.data),
   getModels: (provider, api_key) =>
     api.post('/api/auth/models', { provider, api_key }).then((response) => response.data),
+  // Developer secret keys (for the public /api/v1 REST API)
+  createDeveloperKey: (label) =>
+    api.post('/api/auth/developer-keys', { label }).then((r) => r.data),
+  listDeveloperKeys: () =>
+    api.get('/api/auth/developer-keys').then((r) => r.data),
+  revokeDeveloperKey: (keyId) =>
+    api.delete(`/api/auth/developer-keys/${keyId}`).then((r) => r.data),
 };
 
 // Custom error so the caller can distinguish a dropped SSE stream from other
@@ -423,10 +430,18 @@ export const dynamicAgentService = {
       .post('/api/dynamic-agent/tools/refresh', { tool })
       .then((r) => r.data),
   streamRefreshTool: streamRefreshTool,
-  listLogs: (limit = 50) =>
+  listLogs: ({ limit = 50, tool = '', source = '' } = {}) =>
     api
-      .get('/api/dynamic-agent/logs', { params: { limit } })
+      .get('/api/dynamic-agent/logs', {
+        params: {
+          limit,
+          ...(tool ? { tool } : {}),
+          ...(source ? { source } : {}),
+        },
+      })
       .then((r) => r.data),
+  listLogTools: () =>
+    api.get('/api/dynamic-agent/logs/tools').then((r) => r.data),
   getSavings: () =>
     api.get('/api/dynamic-agent/savings').then((r) => r.data),
   getOAuthAuthorizeUrl: (toolName) => {

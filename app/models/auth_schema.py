@@ -50,6 +50,31 @@ class APIKeyResponse(BaseModel):
     # Note: full api_key is never returned for security
 
 
+class DeveloperKeyCreate(BaseModel):
+    """Request to mint a developer secret key."""
+
+    label: str = Field(..., min_length=1, max_length=100)
+
+
+class DeveloperKeyResponse(BaseModel):
+    """Developer key as shown in the dashboard list — never the secret."""
+
+    id: int
+    label: str
+    key_prefix: str
+    last_four: str
+    is_active: bool
+    created_at: datetime
+    last_used_at: Optional[datetime] = None
+
+
+class DeveloperKeyCreateResponse(DeveloperKeyResponse):
+    """Returned ONCE at creation — includes the raw secret. The client must
+    store it now; it can never be retrieved again."""
+
+    secret_key: str
+
+
 class TokenResponse(BaseModel):
     """JWT token response"""
 

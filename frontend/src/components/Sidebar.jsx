@@ -9,6 +9,8 @@ import {
   FiZap,
   FiCpu,
   FiServer,
+  FiCode,
+  FiList,
 } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
 
@@ -17,7 +19,9 @@ const NAV_ITEMS = [
   { to: '/prompts', label: 'Prompts', icon: FiMessageSquare },
   { to: '/agent', label: 'Dynamic Agent', icon: FiCpu },
   { to: '/tools', label: 'Cached Tools', icon: FiServer },
+  { to: '/logs', label: 'Logs', icon: FiList },
   { to: '/keys', label: 'API Keys', icon: FiKey },
+  { to: '/developer-keys', label: 'Developer Keys', icon: FiCode },
   { to: '/settings', label: 'Settings', icon: FiSettings },
 ];
 

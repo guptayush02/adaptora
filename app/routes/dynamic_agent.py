@@ -37,6 +37,7 @@ from sqlalchemy.orm import Session
 from app.core.logger import logger
 from app.db.database import SessionLocal, get_db
 from app.db.models import (
+    DeveloperApiKey,
     DynamicAgentRunLog,
     DynamicToolConnection,
     McpToolListStat,
@@ -117,6 +118,10 @@ class ToolItem(BaseModel):
 class RunLogItem(BaseModel):
     id: int
     tool: Optional[str] = None
+    # Which developer key triggered this run (None = web UI / MCP).
+    api_key_id: Optional[int] = None
+    key_label: Optional[str] = None
+    source: str = "ui"  # "api" if produced via a developer key, else "ui"
     language: str
     prompt: str
     thought: Optional[str] = None
@@ -619,20 +624,47 @@ async def refresh_tool_stream(
 @router.get("/logs", response_model=List[RunLogItem])
 async def list_logs(
     limit: int = 50,
+    tool: Optional[str] = Query(None, description="Filter by tool name"),
+    source: Optional[str] = Query(
+        None, description="'api' (developer-key runs) or 'ui' (web UI / MCP)"
+    ),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    q = db.query(DynamicAgentRunLog).filter(
+        DynamicAgentRunLog.user_id == current_user.id
+    )
+    if tool:
+        q = q.filter(DynamicAgentRunLog.tool_name == tool)
+    if source == "api":
+        q = q.filter(DynamicAgentRunLog.api_key_id.isnot(None))
+    elif source == "ui":
+        q = q.filter(DynamicAgentRunLog.api_key_id.is_(None))
+
     rows = (
-        db.query(DynamicAgentRunLog)
-        .filter(DynamicAgentRunLog.user_id == current_user.id)
-        .order_by(DynamicAgentRunLog.created_at.desc())
+        q.order_by(DynamicAgentRunLog.created_at.desc())
         .limit(min(max(limit, 1), 200))
         .all()
     )
+
+    # Resolve key labels in one query for the keys referenced by this page.
+    key_ids = {r.api_key_id for r in rows if r.api_key_id}
+    labels: Dict[int, str] = {}
+    if key_ids:
+        labels = {
+            k.id: k.label
+            for k in db.query(DeveloperApiKey)
+            .filter(DeveloperApiKey.id.in_(key_ids))
+            .all()
+        }
+
     return [
         RunLogItem(
             id=r.id,
             tool=r.tool_name,
+            api_key_id=r.api_key_id,
+            key_label=labels.get(r.api_key_id) if r.api_key_id else None,
+            source="api" if r.api_key_id else "ui",
             language=r.language or "en",
             prompt=r.prompt,
             thought=r.thought,
@@ -649,6 +681,25 @@ async def list_logs(
         )
         for r in rows
     ]
+
+
+@router.get("/logs/tools", response_model=List[str])
+async def list_log_tools(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Distinct tool names that appear in this user's run logs — powers the
+    tool dropdown on the logs page."""
+    rows = (
+        db.query(DynamicAgentRunLog.tool_name)
+        .filter(
+            DynamicAgentRunLog.user_id == current_user.id,
+            DynamicAgentRunLog.tool_name.isnot(None),
+        )
+        .distinct()
+        .all()
+    )
+    return sorted({r.tool_name for r in rows if r.tool_name})
 
 
 # ---------------------------------------------------------------- OAuth2 flow

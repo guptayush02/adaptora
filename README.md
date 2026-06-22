@@ -11,6 +11,7 @@ A self-hosted Dynamic API Agent with an MCP (Model Context Protocol) layer on to
 - **Dynamic Tool Discovery** — Type a tool name (`github`, `stripe`, `shopify`, `notion`, …) or describe what you want to do, and the agent fetches its docs, OpenAPI spec, and rate limits automatically. Curated seed tools (github, aws, stripe, slack, notion, openai, razorpay, linear, gmail) ship pre-configured.
 - **Multi-source doc fetching** — Web search + OpenAPI spec probing (24+ URL patterns) + native parsing + LLM extraction, merged with method/path deduplication. Refreshing `github` grows from 5 → 120+ endpoints; AWS uses local `boto3` introspection for 49+.
 - **MCP Server** — Exposes the agent over the Model Context Protocol. Every connected tool's endpoints become typed MCP tools your AI assistant can call directly.
+- **REST API + developer keys** — Mint a secret key on the dashboard and call Adaptora from any project in any language (`POST /api/v1/run` with `Authorization: Bearer adp_live_…`). Every call runs against your saved connections and is logged, tagged by key and tool, on the dashboard.
 - **Authenticated chat UI** — React frontend with per-user encrypted credential storage (AES), conversation history, streaming SSE responses, and a "Cached Tools" page with live refresh progress.
 - **Token tracking & caching** — Tracks every model call, caches identical prompts, routes simple queries to local Ollama and complex ones to Claude/GPT (optional).
 - **One-command Docker deploy** — 4-container stack (app, Postgres, Redis, Ollama) wired with healthchecks and persistent volumes.
@@ -217,6 +218,99 @@ claude
 > Set up shopify with the Admin API # → calls setup_new_tool
 > Refresh the docs for stripe       # → calls refresh_tool_docs
 ```
+
+---
+
+## Using the REST API (developer keys)
+
+Want to call Adaptora from your own app — a backend service, a script, a cron
+job — instead of an MCP client? Mint a **developer secret key** on the dashboard
+and hit the public REST API. The key authenticates as you, so every call runs
+against the tools you've already connected.
+
+### 1. Create a key
+
+In the web UI, open **Developer Keys** in the sidebar → **New key** → give it a
+name (e.g. `production-backend`). The secret (`adp_live_…`) is shown **once** —
+copy it now; only its hash is stored, so it can never be retrieved again. Revoke
+a key anytime from the same page (calls using it immediately start returning
+`401`).
+
+### 2. Call `POST /api/v1/run`
+
+Send your prompt with the key as a bearer token. The agent identifies the right
+service, plans the call, executes it against your saved credentials, and returns
+the result:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/run \
+  -H "Authorization: Bearer adp_live_YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "list my open github issues"}'
+```
+
+```python
+# Python
+import requests
+
+resp = requests.post(
+    "http://localhost:8000/api/v1/run",
+    headers={"Authorization": "Bearer adp_live_YOUR_KEY"},
+    json={"prompt": "list my open github issues"},
+)
+print(resp.json())
+```
+
+```javascript
+// Node.js (fetch)
+const resp = await fetch("http://localhost:8000/api/v1/run", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer adp_live_YOUR_KEY",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ prompt: "list my open github issues" }),
+});
+console.log(await resp.json());
+```
+
+**Request body**
+
+| Field | Required | Description |
+|---|---|---|
+| `prompt` | yes | Natural-language instruction. The agent extracts intent + service automatically. |
+| `language` | no | `"en"` (default) or `"hinglish"`. |
+
+**Response** (shape):
+
+```jsonc
+{
+  "log_id": 121,
+  "status": "success",        // success | needs_credentials | needs_tool_setup | error
+  "tool": "github",
+  "summary": "You have 7 open issues…",
+  "final_answer": "…",
+  "http_status": 200,
+  "response": { /* the upstream API's data */ },
+  "error": null,
+  "duration_ms": 842.1
+}
+```
+
+If you haven't connected the target tool yet, `status` is `needs_credentials` —
+connect it once in the web UI (see [Connecting OAuth2
+Tools](#connecting-oauth2-tools-spotify-github-notion-google-slack)), then retry.
+
+### 3. See your logs
+
+Every API call is recorded under **Logs** in the dashboard, tagged with the key
+that made it and the tool it hit. Filter by **tool** or by **source**
+(`API` vs `Web UI / MCP`) to find a specific call. Use a separate key per
+project/environment so you can tell their traffic apart at a glance.
+
+> **Keep keys secret.** They grant full access to your connected tools. Store
+> them in environment variables / a secrets manager — never commit them. Behind
+> a public deployment, terminate TLS so keys aren't sent in cleartext.
 
 ---
 
