@@ -14,6 +14,8 @@ activity per project (key) and per tool.
 
 from __future__ import annotations
 
+import asyncio
+import uuid
 from datetime import datetime
 from typing import Any, Optional, Tuple
 
@@ -27,6 +29,7 @@ from app.core.security import hash_api_key
 from app.db.database import get_db
 from app.db.models import DeveloperApiKey, DynamicAgentRunLog, User
 from app.services.dynamic_agent_service import dynamic_agent_service
+from app.services.event_bus import publish_step
 
 router = APIRouter(prefix="/api/v1", tags=["Public API"])
 
@@ -103,15 +106,39 @@ async def run(
     key owner's saved connections. The resulting run log is tagged with the
     key id for per-project attribution."""
     user, key = auth
+
+    # Correlation id so the dashboard can group this run's step events.
+    run_uid = uuid.uuid4().hex
+
+    def _emit(step: str, data: Optional[dict] = None) -> None:
+        """Forward each pipeline step to the user's live channel so the
+        dashboard renders the execution as it happens. Best-effort."""
+        publish_step(
+            user.id,
+            {
+                "run_uid": run_uid,
+                "source": "api",
+                "key_label": key.label,
+                "step": step,
+                "data": data or {},
+            },
+        )
+
+    _emit("received", {"prompt": payload.prompt})
     try:
-        result = dynamic_agent_service.run_turn(
+        # Run in a worker thread so the (blocking) pipeline doesn't stall the
+        # event loop — keeping the dashboard's live SSE responsive meanwhile.
+        result = await asyncio.to_thread(
+            dynamic_agent_service.run_turn,
             db,
             user_id=user.id,
             prompt=payload.prompt,
             language=payload.language,
+            status_callback=_emit,
         )
     except Exception as exc:
         logger.exception("public /run turn failed")
+        _emit("error", {"error": str(exc)})
         raise HTTPException(status_code=500, detail=f"Agent error: {exc}")
 
     # Tag the just-written run log with the originating key. Post-update keeps
@@ -128,6 +155,17 @@ async def run(
         except Exception as exc:  # pragma: no cover — tagging is non-critical
             logger.warning(f"failed to tag run {log_id} with key {key.id}: {exc}")
             db.rollback()
+
+    # Final event: lets the dashboard mark the run complete and pull the
+    # finished row (with its full trace) into the table.
+    _emit(
+        "done",
+        {
+            "log_id": result.get("log_id"),
+            "status": result.get("status"),
+            "tool": result.get("tool"),
+        },
+    )
 
     return RunResponse(
         log_id=result.get("log_id"),

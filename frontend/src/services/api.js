@@ -341,6 +341,59 @@ async function streamDynamicAgentTurn({
   throw new Error('Agent stream closed before completion');
 }
 
+// Long-lived SSE client for /api/dynamic-agent/logs/stream. Forwards every
+// pipeline step (`received` → `identifying_tool` → … → `done`) for this
+// user's runs — including curls against /api/v1/run from another process —
+// so the dashboard can render execution live. Pass an AbortSignal to stop it
+// when the page unmounts or live mode is toggled off.
+async function streamLogs({ onStep, signal }) {
+  const token = localStorage.getItem('token');
+  const response = await fetch(`${API_BASE_URL}/api/dynamic-agent/logs/stream`, {
+    method: 'GET',
+    headers: {
+      Accept: 'text/event-stream',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    signal,
+  });
+
+  if (!response.ok || !response.body) {
+    const text = await response.text().catch(() => '');
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let sep;
+    while ((sep = buffer.indexOf('\n\n')) !== -1) {
+      const raw = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      if (!raw || raw.startsWith(':')) continue; // heartbeat / comment
+      let event = 'message';
+      const dataLines = [];
+      for (const line of raw.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim();
+        else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+      }
+      if (!dataLines.length) continue;
+      let payload;
+      try {
+        payload = JSON.parse(dataLines.join('\n'));
+      } catch {
+        payload = dataLines.join('\n');
+      }
+      if (event === 'step') onStep?.(payload);
+    }
+  }
+}
+
 // SSE client for /api/dynamic-agent/tools/refresh/stream. Emits `status`
 // events per pipeline stage (searching_web, web_results, openapi_parsed,
 // enriching, llm_extracting, saved) so the user sees what's happening
@@ -445,6 +498,7 @@ export const dynamicAgentService = {
       .then((r) => r.data),
   listLogTools: () =>
     api.get('/api/dynamic-agent/logs/tools').then((r) => r.data),
+  streamLogs,
   getSavings: () =>
     api.get('/api/dynamic-agent/savings').then((r) => r.data),
   getOAuthAuthorizeUrl: (toolName) => {

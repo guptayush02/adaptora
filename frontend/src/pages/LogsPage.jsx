@@ -6,8 +6,39 @@ import {
   FiChevronRight,
   FiChevronDown,
   FiAlertTriangle,
+  FiActivity,
+  FiCheck,
+  FiLoader,
 } from 'react-icons/fi';
 import { dynamicAgentService } from '../services/api';
+
+// Friendly labels for each pipeline step the agent emits.
+const STEP_LABELS = {
+  received: 'Request received',
+  identifying_tool: 'Identifying tool',
+  tool_identified: 'Tool identified',
+  looking_up_docs: 'Loading docs',
+  docs_loaded: 'Docs loaded',
+  checking_connection: 'Checking connection',
+  connection_found: 'Connection found',
+  connection_missing: 'Connection missing',
+  planning_action: 'Planning request',
+  action_planned: 'Request planned',
+  executing: 'Executing',
+  executed: 'Executed',
+  summarizing: 'Summarizing',
+  done: 'Done',
+  error: 'Error',
+};
+
+// Small contextual suffix for a step (the tool name, HTTP status, …).
+function stepDetail(s) {
+  const d = s.data || {};
+  if (d.tool) return d.tool;
+  if (d.http_status) return `HTTP ${d.http_status}`;
+  if (d.status) return d.status;
+  return '';
+}
 
 const SOURCES = [
   { value: '', label: 'All sources' },
@@ -61,6 +92,52 @@ function DetailBlock({ label, value, mono = false, tone }) {
       ) : (
         <div className="log-detail-body">{text}</div>
       )}
+    </div>
+  );
+}
+
+// A single in-flight run, rendered as a live step-by-step trace.
+function LiveRun({ run }) {
+  const isError = run.status === 'error';
+  return (
+    <div className={`live-run ${run.done ? 'live-run-done' : ''}`}>
+      <div className="live-run-head">
+        {run.done ? (
+          isError ? <FiAlertTriangle /> : <FiCheck />
+        ) : (
+          <FiLoader className="live-spin" />
+        )}
+        <strong>{run.tool || 'Resolving…'}</strong>
+        {run.source === 'api' && (
+          <span className="log-badge">{run.key_label || 'API'}</span>
+        )}
+        {run.done && (
+          <span className={`log-badge ${STATUS_CLASS[run.status] || ''}`}>
+            {run.status}
+          </span>
+        )}
+      </div>
+      <ol className="live-steps">
+        {run.steps.map((s, i) => {
+          const last = i === run.steps.length - 1;
+          const pending = last && !run.done;
+          const detail = stepDetail(s);
+          return (
+            <li
+              key={`${s.step}-${i}`}
+              className={pending ? 'live-step-active' : 'live-step-done'}
+            >
+              <span className="live-step-icon">
+                {pending ? <FiLoader className="live-spin" /> : <FiCheck />}
+              </span>
+              <span>
+                {STEP_LABELS[s.step] || s.step}
+                {detail && <span className="live-step-detail"> · {detail}</span>}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
@@ -159,10 +236,15 @@ function LogsPage() {
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(true);
   const [flashIds, setFlashIds] = useState(() => new Set());
+  // In-flight runs keyed by run_uid, streamed step-by-step over SSE.
+  const [liveRuns, setLiveRuns] = useState(() => new Map());
   // Prevents overlapping polls if a request is slow.
   const inFlight = useRef(false);
   // Run ids we've already shown, so a live poll can flag genuinely new ones.
   const seenIds = useRef(new Set());
+  // Latest loadLogs, so the (stable) step handler can refresh without
+  // forcing the SSE connection to reconnect on every filter change.
+  const loadLogsRef = useRef(null);
 
   // `silent` refreshes (the live poll) skip the loading spinner so the table
   // doesn't flicker, and surface a toast only on the very first failure. On a
@@ -199,10 +281,87 @@ function LogsPage() {
     [tool, source, status]
   );
 
+  useEffect(() => {
+    loadLogsRef.current = loadLogs;
+  }, [loadLogs]);
+
   // Re-fetch whenever filters change (with spinner).
   useEffect(() => {
     loadLogs();
   }, [loadLogs]);
+
+  // Apply one streamed step event to the live-runs map. Stable identity so the
+  // SSE connection below isn't torn down on every render / filter change.
+  const handleStep = useCallback((evt) => {
+    if (!evt || !evt.run_uid) return;
+    const { run_uid, step, data = {}, key_label, source: src } = evt;
+    const finished = step === 'done' || step === 'error';
+    setLiveRuns((prev) => {
+      const next = new Map(prev);
+      const cur =
+        next.get(run_uid) || {
+          run_uid,
+          key_label,
+          source: src,
+          steps: [],
+          tool: null,
+          status: null,
+          done: false,
+        };
+      const updated = {
+        ...cur,
+        steps: [...cur.steps, { step, data }],
+        tool: data.tool || cur.tool,
+        done: finished || cur.done,
+        status: step === 'error' ? 'error' : data.status || cur.status,
+      };
+      next.set(run_uid, updated);
+      return next;
+    });
+    if (finished) {
+      // Pull the completed row (with its full trace) into the table, then
+      // retire the live card after a brief moment on screen.
+      loadLogsRef.current?.({ silent: true });
+      setTimeout(() => {
+        setLiveRuns((prev) => {
+          const next = new Map(prev);
+          next.delete(run_uid);
+          return next;
+        });
+      }, 6000);
+    }
+  }, []);
+
+  // Live execution feed: subscribe to the per-user step channel over SSE while
+  // live mode is on. Auto-reconnects if the stream drops. When Redis isn't
+  // configured the stream just heartbeats and the polling tail covers updates.
+  useEffect(() => {
+    if (!live) {
+      setLiveRuns(new Map());
+      return undefined;
+    }
+    const controller = new AbortController();
+    let cancelled = false;
+    (async function connect() {
+      while (!cancelled) {
+        try {
+          await dynamicAgentService.streamLogs({
+            signal: controller.signal,
+            onStep: handleStep,
+          });
+        } catch (err) {
+          if (controller.signal.aborted) return;
+          console.error('log stream error', err);
+        }
+        if (cancelled) return;
+        await new Promise((r) => setTimeout(r, 2000)); // back off, then retry
+      }
+    })();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [live, handleStep]);
 
   // Live tail: poll the shared DB every few seconds. Reads completed runs from
   // every source (web UI, public /api/v1, and the separate MCP server process),
@@ -254,6 +413,19 @@ function LogsPage() {
           </button>
         </div>
       </div>
+
+      {liveRuns.size > 0 && (
+        <div className="card live-panel">
+          <h2 className="card-title">
+            <FiActivity /> Live execution
+          </h2>
+          <div className="live-run-list">
+            {Array.from(liveRuns.values()).map((run) => (
+              <LiveRun key={run.run_uid} run={run} />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <div className="form-row">

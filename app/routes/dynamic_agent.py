@@ -709,6 +709,74 @@ async def list_log_tools(
     return sorted({r.tool_name for r in rows if r.tool_name})
 
 
+@router.get("/logs/stream")
+async def logs_stream(current_user: User = Depends(get_current_user)):
+    """Live SSE feed of pipeline steps for this user's runs.
+
+    Subscribes to the user's Redis channel and forwards every step
+    (``received`` → ``identifying_tool`` → … → ``done``) as it happens —
+    including runs triggered from a developer's curl against ``/api/v1/run``
+    in a different process. The dashboard renders these as a live, step-by-step
+    execution trace. If Redis is unavailable the stream just heartbeats and the
+    dashboard relies on polling instead.
+    """
+    from app.services.event_bus import make_subscription
+
+    user_id = current_user.id
+    pubsub = make_subscription(user_id)
+    events_q: "queue.Queue" = queue.Queue()
+    stop = threading.Event()
+
+    def reader() -> None:
+        if pubsub is None:
+            return
+        try:
+            while not stop.is_set():
+                msg = pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                if msg and msg.get("type") == "message":
+                    data = msg.get("data")
+                    if isinstance(data, (bytes, bytearray)):
+                        data = data.decode("utf-8", "ignore")
+                    try:
+                        events_q.put(json.loads(data))
+                    except Exception:
+                        pass
+        finally:
+            try:
+                pubsub.close()
+            except Exception:
+                pass
+
+    threading.Thread(target=reader, daemon=True).start()
+
+    HEARTBEAT_SECONDS = 15
+
+    def event_source():
+        # Prime the connection so proxies flush immediately.
+        yield ": stream-open\n\n"
+        try:
+            while True:
+                try:
+                    evt = events_q.get(timeout=HEARTBEAT_SECONDS)
+                except queue.Empty:
+                    yield f": keepalive {int(time.time())}\n\n"
+                    continue
+                yield f"event: step\ndata: {json.dumps(evt, default=str)}\n\n"
+        finally:
+            # Client disconnected / generator closed — stop the reader thread.
+            stop.set()
+
+    return StreamingResponse(
+        event_source(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 # ---------------------------------------------------------------- OAuth2 flow
 # In-memory state store: state_token → {user_id, tool_name}
 # Short-lived (10 min TTL enforced by the callback).
