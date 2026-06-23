@@ -33,11 +33,9 @@ See [LICENSE](./LICENSE) for the full text.
 
 ## Demo
 
-<a href="https://youtu.be/BoGareRAZJk" target="_blank" rel="noopener noreferrer">
-  <img src="https://img.youtube.com/vi/BoGareRAZJk/maxresdefault.jpg" alt="Adaptora demo — set up a tool and run it in natural language" width="640" />
-</a>
+https://github.com/user-attachments/assets/62dad55a-a0a3-46d8-a689-bca21e9007db
 
-▶️ <strong><a href="https://youtu.be/BoGareRAZJk" target="_blank" rel="noopener noreferrer">Watch the setup-and-run walkthrough on YouTube</a></strong> — setting up a tool in Adaptora and running it on the Docker stack.
+*Setting up a tool in Adaptora and running it on the Docker stack — plays right here on GitHub.* ▶️ **[Watch in HD on YouTube](https://youtu.be/BoGareRAZJk)**
 
 ```
 > "list my open GitHub issues assigned to me"
