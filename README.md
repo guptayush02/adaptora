@@ -33,6 +33,10 @@ See [LICENSE](./LICENSE) for the full text.
 
 ## Demo
 
+[![Adaptora demo — set up a tool and run it in natural language](https://img.youtube.com/vi/BoGareRAZJk/maxresdefault.jpg)](https://youtu.be/BoGareRAZJk)
+
+▶️ **[Watch the setup-and-run walkthrough on YouTube](https://youtu.be/BoGareRAZJk)** — setting up a tool in Adaptora and running it on the Docker stack.
+
 ```
 > "list my open GitHub issues assigned to me"
 
@@ -45,8 +49,6 @@ See [LICENSE](./LICENSE) for the full text.
         2. #481 — Doc fetcher should support YAML specs
         3. #475 — Streaming endpoint for /tools/refresh
 ```
-
-*(Screenshots & GIF — coming soon.)*
 
 ---
 
@@ -139,7 +141,7 @@ Full step-by-step configs for 8+ clients are in [docs/MCP_CLIENTS.md](./docs/MCP
 - **Custom Python / TypeScript clients**
 
 Config file location:
-- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- macOS: `~/Library/Application\ Support/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
 > On macOS, quote the path if you `cat`/`cp` it — it contains a space (`Application Support`). Unquoted, the shell splits it into two paths and reads/writes the wrong file.
