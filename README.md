@@ -4,30 +4,13 @@ A self-hosted Dynamic API Agent with an MCP (Model Context Protocol) layer on to
 
 > Bring-your-own-LLM. Runs locally with [Ollama](https://ollama.com) (default: `qwen2.5-coder:3b`). Optional Anthropic/OpenAI keys for tougher queries. No SaaS dependencies.
 
----
-
-## Key Features
-
-- **Dynamic Tool Discovery** — Type a tool name (`github`, `stripe`, `shopify`, `notion`, …) or describe what you want to do, and the agent fetches its docs, OpenAPI spec, and rate limits automatically. Curated seed tools (github, aws, stripe, slack, notion, openai, razorpay, linear, gmail) ship pre-configured.
-- **Multi-source doc fetching** — Web search + OpenAPI spec probing (24+ URL patterns) + native parsing + LLM extraction, merged with method/path deduplication. Refreshing `github` grows from 5 → 120+ endpoints; AWS uses local `boto3` introspection for 49+.
-- **MCP Server** — Exposes the agent over the Model Context Protocol. Every connected tool's endpoints become typed MCP tools your AI assistant can call directly.
-- **REST API + developer keys** — Mint a secret key on the dashboard and call Adaptora from any project in any language (`POST /api/v1/run` with `Authorization: Bearer adp_live_…`). Every call runs against your saved connections and is logged, tagged by key and tool, on the dashboard. A streaming variant (`POST /api/v1/run/stream`, Server-Sent Events) emits each pipeline step as it happens so you can render the agent's progress live in your own UI.
-- **Live execution logs** — The dashboard **Logs** page tails every run from every source (Web UI, MCP, and `/api/v1`) in real time over SSE. In-flight runs appear as a live row at the top of the table that updates step-by-step, then settle into the completed-run history once done.
-- **Authenticated chat UI** — React frontend with per-user encrypted credential storage (AES), conversation history, streaming SSE responses, and a "Cached Tools" page with live refresh progress.
-- **Token tracking & caching** — Tracks every model call, caches identical prompts, routes simple queries to local Ollama and complex ones to Claude/GPT (optional).
-- **One-command Docker deploy** — 4-container stack (app, Postgres, Redis, Ollama) wired with healthchecks and persistent volumes.
-
----
-
-## License
-
-Adaptora is source-available under the **Business Source License 1.1** (BUSL-1.1).
-
-- **Free for**: personal use, self-hosted non-commercial deployments, evaluation, and open-source contributions.
-- **Commercial use** (running Adaptora as a hosted service, embedding it in a paid product, or selling access to it) requires a separate commercial license — [contact us](mailto:guptayush02@gmail.com).
-- **Converts to Apache 2.0** on 2030-06-15, four years after the initial release.
-
-See [LICENSE](./LICENSE) for the full text.
+<p>
+  <a href="https://github.com/guptayush02/adaptora/stargazers"><img src="https://img.shields.io/github/stars/guptayush02/adaptora?style=social" alt="GitHub stars"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-BUSL--1.1-blue.svg" alt="License: BUSL-1.1"></a>
+  <img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/node-18+-green.svg" alt="Node 18+">
+  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs welcome">
+</p>
 
 ---
 
@@ -52,6 +35,30 @@ https://github.com/user-attachments/assets/62dad55a-a0a3-46d8-a689-bca21e9007db
 
 ---
 
+## Why Adaptora?
+
+Connecting an LLM to real APIs usually breaks on the unglamorous parts: hunting
+down docs, wiring up auth, hand-writing a JSON schema for every endpoint, and
+one malformed argument silently killing the call. Adaptora owns that boundary
+for you — point it at any API and it discovers the docs, stores your credentials
+encrypted, turns every endpoint into a typed tool, and runs it from plain
+language through **MCP, a REST API, or the web UI**.
+
+---
+
+## Key Features
+
+- **Dynamic Tool Discovery** — Type a tool name (`github`, `stripe`, `shopify`, `notion`, …) or describe what you want to do, and the agent fetches its docs, OpenAPI spec, and rate limits automatically. Curated seed tools (github, aws, stripe, slack, notion, openai, razorpay, linear, gmail) ship pre-configured.
+- **Multi-source doc fetching** — Web search + OpenAPI spec probing (24+ URL patterns) + native parsing + LLM extraction, merged with method/path deduplication. Refreshing `github` grows from 5 → 120+ endpoints; AWS uses local `boto3` introspection for 49+.
+- **MCP Server** — Exposes the agent over the Model Context Protocol. Every connected tool's endpoints become typed MCP tools your AI assistant can call directly.
+- **REST API + developer keys** — Mint a secret key on the dashboard and call Adaptora from any project in any language (`POST /api/v1/run` with `Authorization: Bearer adp_live_…`). Every call runs against your saved connections and is logged, tagged by key and tool, on the dashboard. A streaming variant (`POST /api/v1/run/stream`, Server-Sent Events) emits each pipeline step as it happens so you can render the agent's progress live in your own UI.
+- **Live execution logs** — The dashboard **Logs** page tails every run from every source (Web UI, MCP, and `/api/v1`) in real time over SSE. In-flight runs appear as a live row at the top of the table that updates step-by-step, then settle into the completed-run history once done.
+- **Authenticated chat UI** — React frontend with per-user encrypted credential storage (AES), conversation history, streaming SSE responses, and a "Cached Tools" page with live refresh progress.
+- **Token tracking & caching** — Tracks every model call, caches identical prompts, routes simple queries to local Ollama and complex ones to Claude/GPT (optional).
+- **One-command Docker deploy** — 4-container stack (app, Postgres, Redis, Ollama) wired with healthchecks and persistent volumes.
+
+---
+
 ## Quick Start
 
 ### Option 1 — Docker (recommended)
@@ -59,7 +66,7 @@ https://github.com/user-attachments/assets/62dad55a-a0a3-46d8-a689-bca21e9007db
 The full stack runs in 4 containers (app + Postgres + Redis + Ollama). The first start downloads ~2 GB for `qwen2.5-coder:3b`; subsequent starts are fast thanks to a named volume.
 
 ```bash
-git clone https://github.com/ayushgupta02/adaptora.git
+git clone https://github.com/guptayush02/adaptora.git
 cd adaptora
 
 # 1. Configure (only secrets — infra URLs are wired to compose service names)
@@ -620,6 +627,18 @@ Adaptora automatically refreshes expired tokens using the stored `refresh_token`
 
 ---
 
+## License
+
+Adaptora is source-available under the **Business Source License 1.1** (BUSL-1.1).
+
+- **Free for**: personal use, self-hosted non-commercial deployments, evaluation, and open-source contributions.
+- **Commercial use** (running Adaptora as a hosted service, embedding it in a paid product, or selling access to it) requires a separate commercial license — [contact us](mailto:guptayush02@gmail.com).
+- **Converts to Apache 2.0** on 2030-06-15, four years after the initial release.
+
+See [LICENSE](./LICENSE) for the full text.
+
+---
+
 ## Contributing
 
 PRs and issues welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md).
@@ -630,4 +649,4 @@ PRs and issues welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 Questions, commercial licensing, or partnership: [guptayush02@gmail.com](mailto:guptayush02@gmail.com)
 
-Built by [Ayush Gupta](https://github.com/ayushgupta02).
+Built by [Ayush Gupta](https://github.com/guptayush02).
