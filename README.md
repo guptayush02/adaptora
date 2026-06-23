@@ -33,9 +33,11 @@ See [LICENSE](./LICENSE) for the full text.
 
 ## Demo
 
-[![Adaptora demo — set up a tool and run it in natural language](https://img.youtube.com/vi/BoGareRAZJk/maxresdefault.jpg)](https://youtu.be/BoGareRAZJk)
+<a href="https://youtu.be/BoGareRAZJk" target="_blank" rel="noopener noreferrer">
+  <img src="https://img.youtube.com/vi/BoGareRAZJk/maxresdefault.jpg" alt="Adaptora demo — set up a tool and run it in natural language" width="640" />
+</a>
 
-▶️ **[Watch the setup-and-run walkthrough on YouTube](https://youtu.be/BoGareRAZJk)** — setting up a tool in Adaptora and running it on the Docker stack.
+▶️ <strong><a href="https://youtu.be/BoGareRAZJk" target="_blank" rel="noopener noreferrer">Watch the setup-and-run walkthrough on YouTube</a></strong> — setting up a tool in Adaptora and running it on the Docker stack.
 
 ```
 > "list my open GitHub issues assigned to me"
