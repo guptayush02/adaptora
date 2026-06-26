@@ -70,6 +70,7 @@ RUN chmod +x start.sh
 # Environment defaults — overridable from docker-compose / .env.
 ENV HOST=0.0.0.0 \
     PORT=8000 \
+    OLLAMA_MODEL=qwen2.5-coder:3b \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 

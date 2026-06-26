@@ -28,10 +28,13 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
 
-    # Ollama Configuration — defaults to a local Ollama instance. Override with
-    # OLLAMA_API_URL in .env if you run Ollama on a remote host.
-    OLLAMA_API_URL: Optional[str] = None
-    OLLAMA_MODEL: Optional[str] = None
+    # Ollama Configuration — SINGLE SOURCE OF TRUTH for the Ollama base URL and
+    # model. Every service reads these via `settings.OLLAMA_API_URL` /
+    # `settings.OLLAMA_MODEL`; nothing hardcodes a host or model name. Override
+    # in `.env` (local runs) or `.env.docker` (compose) — values there win over
+    # these defaults. Defaults below keep a bare `python -m app` run working.
+    OLLAMA_API_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "qwen2.5-coder:3b"
     # Read timeout (how long we wait for the model to finish generating).
     OLLAMA_TIMEOUT: int = 1800
     # Connect timeout (how long we wait for the initial TCP handshake). Kept

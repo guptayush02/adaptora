@@ -330,11 +330,21 @@ class PromptOptimizer:
                 f"{translated[:120]!r}"
             )
             _emit("translated", english_prompt=translated)
-            # Now optimize the English version. Use the regular English
-            # optimizer call so it gets to apply the preservation rules.
-            english_result = self._optimize_english_via_ollama(
-                translated, original_for_fallback=translated
-            )
+            # Now optimize the English version. Mirror the English-path guard
+            # above (word_count < 6): a very short prompt is already minimal,
+            # so handing it to the aggressive LLM optimizer buys no real
+            # savings and risks SEMANTIC DRIFT — the weather-heavy few-shots
+            # in _build_english_optimize_prompt would, for a 3-word input like
+            # "today's news", happily rewrite it to "today's weather". The
+            # deterministic pass only strips filler, so it can never change
+            # the meaning. This is content-agnostic: it protects every short
+            # translated prompt in any language, not just this one phrase.
+            if len(translated.split()) < 6:
+                english_result = self._deterministic_optimize(translated)
+            else:
+                english_result = self._optimize_english_via_ollama(
+                    translated, original_for_fallback=translated
+                )
             # Rewrap so original_prompt is the user's actual (non-English)
             # input and tokens_saved compares the right things. Word counts
             # were the wrong primitive here — Hindi packs ~5× more BPE

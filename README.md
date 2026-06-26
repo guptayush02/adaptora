@@ -55,7 +55,7 @@ language through **MCP, a REST API, or the web UI**.
 - **Live execution logs** — The dashboard **Logs** page tails every run from every source (Web UI, MCP, and `/api/v1`) in real time over SSE. In-flight runs appear as a live row at the top of the table that updates step-by-step, then settle into the completed-run history once done.
 - **Authenticated chat UI** — React frontend with per-user encrypted credential storage (AES), conversation history, streaming SSE responses, and a "Cached Tools" page with live refresh progress.
 - **Token tracking & caching** — Tracks every model call, caches identical prompts, routes simple queries to local Ollama and complex ones to Claude/GPT (optional).
-- **One-command Docker deploy** — 4-container stack (app, Postgres, Redis, Ollama) wired with healthchecks and persistent volumes.
+- **One-command Docker deploy** — 3-container stack (app, Postgres, Redis) wired with healthchecks and persistent volumes; the LLM (Ollama) runs natively on the host so it can use your GPU.
 
 ---
 
@@ -63,28 +63,46 @@ language through **MCP, a REST API, or the web UI**.
 
 ### Option 1 — Docker (recommended)
 
-The full stack runs in 4 containers (app + Postgres + Redis + Ollama). The first start downloads ~2 GB for `qwen2.5-coder:3b`; subsequent starts are fast thanks to a named volume.
+The app, Postgres and Redis run in containers. **The LLM (Ollama) runs natively on your host** — on macOS the Apple GPU can't be passed into Docker, so a containerised Ollama would be CPU-only and very slow (~100 s per call for 7b). Running Ollama on the host lets it use your GPU.
 
 ```bash
 git clone https://github.com/guptayush02/adaptora.git
 cd adaptora
 
-# 1. Configure (only secrets — infra URLs are wired to compose service names)
-cp .env.docker.example .env.docker
-# edit .env.docker — at minimum set SECRET_KEY
+# 1. Set up the LLM locally (on the host, not in Docker)
+#    Install Ollama from https://ollama.com/download (or `brew install ollama`)
+ollama serve &                     # start the daemon (uses your GPU)
+ollama pull qwen2.5-coder:7b       # or qwen2.5-coder:3b for a smaller/faster one
 
-# 2. Bring up the stack
+# 2. Configure — point the app at your local model
+cp .env.docker.example .env.docker
+#    .env.docker already sets, and is the single source of truth for, both:
+#      OLLAMA_MODEL=qwen2.5-coder:7b
+#      OLLAMA_API_URL=http://host.docker.internal:11434   # container → host Ollama
+#    Also set SECRET_KEY. Make sure OLLAMA_MODEL matches the model you pulled.
+
+# 3. Bring up the stack (app + db + cache)
 docker compose --env-file .env.docker up --build
 
-# 3. Open the web UI
+# 4. Open the web UI
 open http://localhost:8000
 ```
 
-The first Ollama model pull happens in the background — the app's `start_period` healthcheck (300 s) absorbs the wait without flapping. Watch progress with `docker compose logs -f ollama`.
+> **`host.docker.internal`** is how a container reaches a service on the Mac/Windows host. Keep `ollama serve` running on the host whenever you use the stack.
 
-#### GPU acceleration (optional)
+> **No Ollama container by default.** The `ollama` service sits behind the `with-ollama` compose profile, so `docker compose up -d --build` builds and starts **only** `app`, `db` and `cache` — it never builds or launches an Ollama container. The container is opt-in via `--profile with-ollama` (see below).
 
-If you have an NVIDIA GPU and the [nvidia-container-toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed, uncomment the `deploy.resources.devices` block in [docker-compose.yml](./docker-compose.yml) for ~10× faster inference.
+#### Running Ollama inside Docker instead (Linux / NVIDIA hosts)
+
+On a Linux host with an NVIDIA GPU, a container *can* use the GPU. To run everything in one stack, point the app at the container service and enable the optional profile:
+
+```bash
+# in .env.docker:
+#   OLLAMA_API_URL=http://ollama:11434
+docker compose --env-file .env.docker --profile with-ollama up --build
+```
+
+For GPU passthrough, install the [nvidia-container-toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) and uncomment the `deploy.resources.devices` block on the `ollama` service in [docker-compose.yml](./docker-compose.yml).
 
 ### Option 2 — Local (no Docker)
 
@@ -548,11 +566,23 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for a deeper dive into the agent pipeli
 
 ## Configuration
 
-The agent is configured via environment variables. See [.env.example](./.env.example) (local) or [.env.docker.example](./.env.docker.example) (Docker).
+**All secrets and settings live in env files — `config.py` holds no hardcoded values.** Every service (model name, Ollama base URL, DB, API keys) reads from a single source of truth: your `.env` (local) or `.env.docker` (Docker). These two files are git-ignored; only the `.example` templates are committed. So first thing, copy the template and edit it:
+
+```bash
+# Local run
+cp .env.example .env
+# then edit .env — set OLLAMA_MODEL, OLLAMA_API_URL, SECRET_KEY, etc.
+
+# Docker
+cp .env.docker.example .env.docker
+# then edit .env.docker — set OLLAMA_MODEL (e.g. qwen2.5-coder:7b), SECRET_KEY, etc.
+```
+
+Change the model or Ollama host in **one place** (the env file) and the whole stack picks it up — nothing else needs editing.
 
 | Var | Purpose | Default |
 |---|---|---|
-| `OLLAMA_API_URL` | Where the local LLM lives | `http://localhost:11434` (docker: `http://ollama:11434`) |
+| `OLLAMA_API_URL` | Where the local LLM lives | `http://localhost:11434` (docker → host Ollama: `http://host.docker.internal:11434`) |
 | `OLLAMA_MODEL` | Which model to use | `qwen2.5-coder:3b` |
 | `DATABASE_URL` | SQLAlchemy URL | `sqlite:///./adaptora.db` (docker: Postgres) |
 | `REDIS_URL` | Cache | `redis://localhost:6379/0` |

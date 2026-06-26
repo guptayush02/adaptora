@@ -1,18 +1,28 @@
 # Token Optimizer — full stack via docker compose.
 #
-# Brings up 4 services exactly as requested:
-#   1. app      — frontend (vite) + backend (FastAPI), one container, port 8000
-#   2. db       — PostgreSQL 16 for durable storage
-#   3. ollama   — local LLM, model auto-pulled on first run (qwen2.5-coder:3b)
-#   4. cache    — Redis 7 for prompt-result caching
+# Default services (Mac & most setups):
+#   1. app    — frontend (vite) + backend (FastAPI), one container, port 8000
+#   2. db     — PostgreSQL 16 for durable storage
+#   3. cache  — Redis 7 for prompt-result caching
 #
-# Quick start:
-#     cp .env.docker.example .env.docker
-#     docker compose up --build
+# The LLM (Ollama) runs NATIVELY ON THE HOST, not in a container — on macOS
+# the Apple GPU can't be passed into Docker, so a containerised Ollama would
+# be CPU-only and painfully slow. The app reaches the host's Ollama via
+# OLLAMA_API_URL=http://host.docker.internal:11434 (set in .env.docker).
 #
-# Then open http://localhost:8000 for the web UI. The first start is slow
-# because Ollama is downloading the model (~2 GB for qwen2.5-coder:3b);
-# subsequent starts are fast thanks to the named volume.
+# Optional 4th service:
+#   ollama  — in-container LLM, behind `--profile with-ollama`. Only worth
+#             it on Linux/NVIDIA hosts where the container CAN use the GPU.
+#
+# Quick start (Mac):
+#     # 1. Run Ollama on the host and pull the model:
+#     ollama serve &
+#     ollama pull qwen2.5-coder:7b
+#     # 2. Configure and launch the stack:
+#     cp .env.docker.example .env.docker      # set model + host.docker.internal URL
+#     docker compose --env-file .env.docker up --build
+#
+# Then open http://localhost:8000 for the web UI.
 
 services:
   # ───────────────────────────────────── App: frontend + backend
@@ -26,12 +36,26 @@ services:
     ports:
       - "${APP_PORT:-8000}:8000"
       - "${HTTP_PORT:-8080}:8080"
+    # User-editable config (OLLAMA_MODEL, API keys, etc.) is read from
+    # .env.docker. Unlike `${VAR}` substitution below — which only reads
+    # the auto-loaded `.env` — env_file injects these straight into the
+    # container, so editing .env.docker is enough to change the model.
+    # `required: false` keeps `compose up` working if the file is absent.
+    env_file:
+      - path: .env.docker
+        required: false
     environment:
-      # Compose's service names are resolvable DNS inside the network,
-      # so we hardcode them here. The user only edits .env.docker for
-      # secrets (Tavily, Google CSE, etc.) — not infrastructure URLs.
-      OLLAMA_API_URL: http://ollama:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5-coder:3b}
+      # OLLAMA_API_URL comes from .env.docker (single source of truth).
+      #   • Mac / native Ollama on the host (default):
+      #       OLLAMA_API_URL=http://host.docker.internal:11434
+      #     The app reaches the host's GPU-accelerated Ollama. No `ollama`
+      #     container runs — Docker Desktop on Mac can't pass the Apple
+      #     GPU into containers, so in-container Ollama would be CPU-only.
+      #   • Linux / NVIDIA host wanting an all-in-one stack:
+      #       OLLAMA_API_URL=http://ollama:11434
+      #     and bring the optional service up with `--profile with-ollama`.
+      # The fallback below only applies if .env.docker doesn't set it.
+      OLLAMA_API_URL: ${OLLAMA_API_URL:-http://host.docker.internal:11434}
       REDIS_URL: redis://cache:6379/0
       CACHE_TYPE: redis
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-tokopt}:${POSTGRES_PASSWORD:-tokopt}@db:5432/${POSTGRES_DB:-tokopt}
@@ -51,12 +75,10 @@ services:
         condition: service_healthy
       cache:
         condition: service_healthy
-      ollama:
-        # No condition: the model pull happens in the background and can
-        # take minutes on first run. The app's startup-period healthcheck
-        # handles "ollama not ready yet" gracefully (Ollama daemon itself
-        # comes up in seconds, even if no model is loaded yet).
-        condition: service_started
+      # NOTE: no dependency on `ollama`. By default the app talks to a
+      # native Ollama on the host (http://host.docker.internal:11434),
+      # which isn't a compose service. The optional in-container `ollama`
+      # service (profile: with-ollama) is only for Linux/GPU hosts.
 
   # ───────────────────────────────────── Database
   db:
@@ -100,14 +122,23 @@ services:
 
   # ───────────────────────────────────── Ollama (local LLM)
   ollama:
+    # OPTIONAL — only starts with `--profile with-ollama`. Intended for
+    # Linux / NVIDIA hosts where a container CAN use the GPU. On macOS the
+    # Apple GPU is NOT available inside Docker, so this would run CPU-only
+    # and be very slow (~100s/call for 7b); Mac users should run Ollama
+    # natively on the host instead and leave this profile off.
+    profiles: ["with-ollama"]
     build:
       context: .
       dockerfile: docker/ollama/Dockerfile
     image: adaptora-ollama:latest
     container_name: adaptora-ollama
     restart: unless-stopped
-    environment:
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5-coder:3b}
+    # Same .env.docker as the app, so the model the daemon pulls and the
+    # model the app requests always stay in sync from a single source.
+    env_file:
+      - path: .env.docker
+        required: false
     # Mount /root/.ollama so the downloaded model persists across
     # container recreates — re-pulling a 2GB model on every restart is
     # both slow and a great way to get rate-limited.
