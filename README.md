@@ -6,7 +6,7 @@ A self-hosted Dynamic API Agent with an MCP (Model Context Protocol) layer on to
 
 <p>
   <a href="https://github.com/guptayush02/adaptora/stargazers"><img src="https://img.shields.io/github/stars/guptayush02/adaptora?style=social" alt="GitHub stars"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-BUSL--1.1-blue.svg" alt="License: BUSL-1.1"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/node-18+-green.svg" alt="Node 18+">
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs welcome">
@@ -629,11 +629,9 @@ Adaptora automatically refreshes expired tokens using the stored `refresh_token`
 
 ## License
 
-Adaptora is source-available under the **Business Source License 1.1** (BUSL-1.1).
-
-- **Free for**: personal use, self-hosted non-commercial deployments, evaluation, and open-source contributions.
-- **Commercial use** (running Adaptora as a hosted service, embedding it in a paid product, or selling access to it) requires a separate commercial license — [contact us](mailto:guptayush02@gmail.com).
-- **Converts to Apache 2.0** on 2030-06-15, four years after the initial release.
+Adaptora is open source under the **MIT License** — free to use, modify, and
+distribute, including for commercial purposes. The only requirement is that the
+copyright notice and license text are retained in copies.
 
 See [LICENSE](./LICENSE) for the full text.
 
@@ -647,6 +645,6 @@ PRs and issues welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Contact
 
-Questions, commercial licensing, or partnership: [guptayush02@gmail.com](mailto:guptayush02@gmail.com)
+Questions, support, or partnership: [guptayush02@gmail.com](mailto:guptayush02@gmail.com)
 
 Built by [Ayush Gupta](https://github.com/guptayush02).

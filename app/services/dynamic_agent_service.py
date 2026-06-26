@@ -35,6 +35,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import requests
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.core.config import settings
 from app.core.logger import logger
@@ -43,6 +44,7 @@ from app.db.models import (
     DynamicAgentRunLog,
     DynamicToolConnection,
     ToolDefinition,
+    UserAPIKey,
 )
 from app.services.llm_provider import LLMProvider
 
@@ -339,6 +341,248 @@ def _sanitize_url_string(raw: str) -> str:
     while s and s[-1] in ".,;:":
         s = s[:-1]
     return s.strip()
+
+# Host fragments that show up in API documentation as *placeholders*, never as
+# a real production host. The dynamic extractor sometimes copies one straight
+# out of a docs example (e.g. base_url "https://api.example.com"), which would
+# send every request into the void. Treat any of these as "no base_url" so the
+# fallback chain (LLM training knowledge → real search-result hosts) runs
+# instead of persisting a dead host.
+_PLACEHOLDER_HOST_MARKERS: Tuple[str, ...] = (
+    "example.com", "example.org", "example.net", "example.io", "example.api",
+    "api.example", "your-domain", "yourdomain", "your_domain", "your-company",
+    "yourcompany", "your-api", "yourapi", "your-app", "api.your", "api.domain",
+    "domain.com", "host.com", "hostname", "subdomain", "yourtenant",
+    "your-tenant", "mycompany", "myapi", "localhost", "127.0.0.1", "0.0.0.0",
+)
+
+def _url_host(url: Optional[str]) -> str:
+    """Lower-cased hostname of a URL, without urllib (not imported here)."""
+    if not url or not isinstance(url, str):
+        return ""
+    m = re.match(r"^\s*https?://([^/?#]+)", url, re.IGNORECASE)
+    if not m:
+        return ""
+    return m.group(1).split("@")[-1].split(":")[0].strip().lower()
+
+def _is_placeholder_url(url: Optional[str]) -> bool:
+    """True if ``url``'s host looks like a docs placeholder rather than a real
+    API host (example.com, your-domain.com, localhost, a leftover {template},
+    a reserved test TLD). Used to reject base_urls copied from a docs snippet."""
+    if not url or not isinstance(url, str):
+        return False
+    if "{" in url or "}" in url or "..." in url:  # leftover templating
+        return True
+    host = _url_host(url)
+    if not host:
+        return False
+    # RFC 2606 / 6761 reserved-for-documentation-and-testing TLDs.
+    if host.endswith((".example", ".invalid", ".test", ".local", ".localhost")):
+        return True
+    return any(marker in host for marker in _PLACEHOLDER_HOST_MARKERS)
+
+# Domains that are never a first-party API reference — tutorials, content
+# farms, forums, and third-party "API" resellers. Not hard-dropped (sometimes
+# they're the only hit), just pushed to the bottom so the official docs win
+# whenever they exist. This is what stops the extractor from learning, say,
+# LinkedIn's API from a dev.to / Proxycurl blog.
+_LOW_TRUST_DOC_DOMAINS: Tuple[str, ...] = (
+    "dev.to", "medium.com", "hashnode.", "freecodecamp.org", "geeksforgeeks.org",
+    "towardsdatascience.com", "hackernoon.com", "tutorialspoint.com", "w3schools.com",
+    "stackoverflow.com", "stackexchange.com", "reddit.com", "quora.com",
+    "youtube.com", "youtu.be", "facebook.com", "twitter.com", "pinterest.",
+    "proxycurl.com", "nubela.co", "rapidapi.com", "programmableweb.com",
+    "apilist.fun", "public-apis", "wikipedia.org", "blog.", "/blog/",
+)
+
+# Path / host fragments that strongly suggest a real API reference or spec.
+_OFFICIAL_DOC_URL_SIGNALS: Tuple[str, ...] = (
+    "/reference", "/api-reference", "/rest", "/docs/api", "/api/",
+    "openapi", "swagger", "/developers", "/developer",
+)
+
+def _score_doc_result(result: Dict[str, Any], tool_name: str) -> int:
+    """Rank a search result by how likely it is to be the tool's OFFICIAL API
+    docs (higher = better). A first-party host (carries the tool's name) + an
+    api/developer/docs subdomain + a spec/reference path scores high; content
+    farms, forums, and third-party API resellers score negative. This is the
+    'human judgment' the small LLM lacks — pick official, ignore blogs."""
+    url = (result.get("href") or "").strip().lower()
+    if not url:
+        return -100
+    host = _url_host(url) or url
+    score = 0
+    # First-party: the host carries the tool's name (linkedin.com, stripe.com…).
+    tokens = [t for t in re.split(r"[^a-z0-9]+", (tool_name or "").lower()) if len(t) >= 3]
+    if any(t in host for t in tokens):
+        score += 50
+    # API-surface / docs subdomains.
+    if host.startswith(("api.", "developer.", "developers.", "docs.")) or \
+            any(s in host for s in (".developer.", ".docs.")):
+        score += 20
+    # Machine-readable spec — the most reliable source of truth.
+    if url.endswith((".json", ".yaml", ".yml")) or "openapi" in url or "swagger" in url:
+        score += 25
+    # Reference-y path segments.
+    if any(seg in url for seg in _OFFICIAL_DOC_URL_SIGNALS):
+        score += 12
+    # Content farms / forums / third-party resellers — push to the bottom.
+    if any(d in host or d in url for d in _LOW_TRUST_DOC_DOMAINS):
+        score -= 80
+    return score
+
+def _registrable_domain(host: str) -> str:
+    """Last two labels of a host — a cheap 'registrable domain' proxy
+    (api.linkedin.com → linkedin.com). Good enough to compare two hosts."""
+    parts = (host or "").split(".")
+    return ".".join(parts[-2:]) if len(parts) >= 2 else (host or "")
+
+def _host_relates_to_tool(
+    base_url: Optional[str], tool_name: str, docs_url: Optional[str] = None
+) -> bool:
+    """Trust check: does ``base_url``'s host plausibly belong to this tool?
+
+    True if the host carries a tool-name token (api.linkedin.com ← 'linkedin'),
+    or shares a registrable domain with the official docs URL. This catches the
+    small model hallucinating a real-but-WRONG host — e.g. returning
+    base_url=api.github.com for the tool 'linkedin'. When it returns False we
+    distrust the web base_url and prefer the model's own knowledge.
+
+    Conservative by design: a tool whose API host genuinely differs from its
+    name (gmail → googleapis.com) returns False here, which only costs a
+    fallback to LLM knowledge — never a wrong save."""
+    host = _url_host(base_url)
+    if not host:
+        return False
+    tokens = [t for t in re.split(r"[^a-z0-9]+", (tool_name or "").lower()) if len(t) >= 4]
+    if any(t in host for t in tokens):
+        return True
+    dhost = _url_host(docs_url or "")
+    if dhost and _registrable_domain(host) == _registrable_domain(dhost):
+        return True
+    return False
+
+def _extract_text_from_bytes(
+    data: bytes, name: str = "", content_type: str = ""
+) -> str:
+    """Turn an arbitrary document (uploaded OR downloaded) into clean text the
+    LLM can read — whatever the format. End users are dumb: they'll send a PDF,
+    a Word doc, an HTML page, a screenshot-export, anything. We sniff the type
+    by magic bytes + filename + content-type and extract readable text.
+
+    Handles: PDF, Word (.docx), HTML, JSON/YAML, Markdown, plain text. Unknown
+    binary falls back to best-effort UTF-8. (Image OCR is out of scope here —
+    that needs a vision model / tesseract; flagged separately.)"""
+    if not data:
+        return ""
+    nm = (name or "").lower()
+    ct = (content_type or "").lower()
+    head = data[:8]
+
+    # --- PDF ---
+    if head.startswith(b"%PDF") or nm.endswith(".pdf") or "application/pdf" in ct:
+        try:
+            import io
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(data))
+            return "\n".join((p.extract_text() or "") for p in reader.pages)
+        except Exception as e:
+            logger.warning(f"PDF text extraction failed: {e}")
+            return ""
+
+    # --- Word .docx (zip: 'PK' magic + .docx name / mime) ---
+    if (head.startswith(b"PK") and nm.endswith(".docx")) or \
+            "officedocument.wordprocessingml" in ct:
+        try:
+            import io
+            from docx import Document
+            doc = Document(io.BytesIO(data))
+            parts = [p.text for p in doc.paragraphs]
+            for table in doc.tables:  # docs often put endpoints in tables
+                for row in table.rows:
+                    parts.append(" | ".join(c.text for c in row.cells))
+            return "\n".join(parts)
+        except Exception as e:
+            logger.warning(f"DOCX text extraction failed: {e}")
+            return ""
+
+    # --- everything else: decode then maybe clean ---
+    try:
+        text = data.decode("utf-8", "ignore")
+    except Exception:
+        return ""
+    stripped = text.lstrip()
+
+    # JSON / YAML / spec text → return raw so the OpenAPI parser can try it.
+    if nm.endswith((".json", ".yaml", ".yml")) or "json" in ct or "yaml" in ct \
+            or stripped[:1] == "{" or stripped[:8] == "openapi:" or stripped[:8] == "swagger:":
+        return text
+
+    # HTML → strip tags to readable text (trafilatura, then BeautifulSoup).
+    if nm.endswith((".html", ".htm")) or "text/html" in ct \
+            or "<html" in stripped[:300].lower() or "<!doctype html" in stripped[:300].lower():
+        try:
+            import trafilatura
+            cleaned = trafilatura.extract(text) or ""
+            if cleaned.strip():
+                return cleaned
+        except Exception:
+            pass
+        try:
+            from bs4 import BeautifulSoup
+            return BeautifulSoup(text, "html.parser").get_text("\n")
+        except Exception:
+            return text
+
+    # plain text / markdown / unknown — already decoded.
+    return text
+
+def _has_api_signals(text: str) -> bool:
+    """Cheap check: does this text actually contain API endpoint definitions
+    (HTTP verbs + paths), vs. being a marketing/index page with none?"""
+    if not text:
+        return False
+    low = text.lower()
+    verbs = sum(low.count(v) for v in ("get ", "post ", "put ", "patch ", "delete "))
+    paths = len(re.findall(r"/[a-z0-9_]+(?:/[a-z0-9_{}]+)+", low))
+    return verbs >= 2 and paths >= 2
+
+def _render_html(url: str, timeout_ms: int = 20000, settle_ms: int = 1800) -> Optional[str]:
+    """Render a URL in headless Chromium and return the post-JavaScript HTML.
+
+    For JS-heavy doc sites (Microsoft Learn, many modern API portals) the
+    static HTML a plain GET returns is an empty shell — the real content and
+    nav links are injected by JavaScript. A headless browser executes that JS
+    server-side (invisible, no GUI) so we can read what a human would see.
+
+    Returns None if Playwright/Chromium isn't available or the render fails —
+    callers fall back to the plain-HTTP text."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception:
+        logger.debug("playwright not installed; skipping headless render")
+        return None
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                args=["--no-sandbox", "--disable-dev-shm-usage"]
+            )
+            try:
+                page = browser.new_page(
+                    user_agent="Mozilla/5.0 (compatible; Adaptora-DocBot/1.0)"
+                )
+                page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
+                try:
+                    page.wait_for_load_state("networkidle", timeout=6000)
+                except Exception:
+                    pass
+                page.wait_for_timeout(settle_ms)
+                return page.content()
+            finally:
+                browser.close()
+    except Exception as e:
+        logger.warning(f"headless render failed for {url}: {e}")
+        return None
 
 def _normalize_endpoint(endpoint: str) -> str:
     """Coerce whatever the LLM produced into a relative path under base_url."""
@@ -1223,27 +1467,84 @@ class DynamicAgentService:
             _emit("error", {"reason": f"extraction failed: {exc}"})
             extracted = None
 
-        # Fallback chain when web extraction returns nothing:
+        # Fallback chain when web extraction is missing OR thin:
         #   1. LLM training-data knowledge (works for ANY well-known tool)
         #   2. Seed data (only for the handful of hand-curated tools)
-        if not extracted or not extracted.get("base_url"):
-            _emit("llm_knowledge_fallback", {"tool": tool_name})
+        #
+        # We trigger this not only when base_url is absent, but also when the
+        # web pages yielded NO endpoints, or only bare "API_KEY" auth with no
+        # config. That's the common failure for JS-heavy / spec-less docs (e.g.
+        # LinkedIn) where the small extractor can't read prose — yet the model
+        # usually KNOWS these well-known APIs (endpoints + the real OAuth URLs).
+        # So we MERGE the model's knowledge in: the web's validated base_url
+        # wins, but endpoints / auth are filled from LLM knowledge when the web
+        # result is thin.
+        web_eps = (extracted or {}).get("endpoints") or {}
+        web_auth = ((extracted or {}).get("auth_type") or "").upper()
+        web_authcfg = (extracted or {}).get("auth_config") or {}
+        # Does the web's base_url host actually belong to this tool? Catches the
+        # model hallucinating a real-but-wrong host (api.github.com for
+        # 'linkedin'). An untrusted host is treated exactly like a missing one.
+        base_trusted = bool((extracted or {}).get("base_url")) and _host_relates_to_tool(
+            (extracted or {}).get("base_url"), tool_name, (extracted or {}).get("docs_url")
+        )
+        needs_help = (
+            not extracted
+            or not extracted.get("base_url")
+            or not base_trusted
+            or not web_eps
+            or (web_auth in ("", "API_KEY") and not web_authcfg)
+        )
+        if needs_help:
+            _emit("llm_knowledge_fallback", {"tool": tool_name, "base_trusted": base_trusted})
             llm_known = self._extract_from_llm_knowledge(tool_name)
-            if llm_known and llm_known.get("base_url"):
-                extracted = llm_known
-                _emit("llm_knowledge_used", {"base_url": llm_known.get("base_url"), "endpoints": len(llm_known.get("endpoints") or {})})
-            elif seed_data:
-                _emit("seed_fallback", {"reason": "web + LLM knowledge both failed"})
-                extracted = {
-                    "base_url": seed_data["base_url"],
-                    "auth_type": seed_data["auth_type"],
-                    "auth_config": seed_data["auth_config"],
-                    "endpoints": dict(seed_data["endpoints"]),
-                    "docs_url": seed_data.get("docs_url"),
-                }
-            else:
-                _emit("error", {"reason": "no usable docs found — web search and LLM knowledge both failed"})
-                return None
+            llm_ok = bool(
+                llm_known
+                and llm_known.get("base_url")
+                and not _is_placeholder_url(llm_known.get("base_url"))
+            )
+
+            if not extracted or not extracted.get("base_url") or not base_trusted:
+                # Web gave nothing usable (or a host that doesn't belong to this
+                # tool) — take LLM knowledge wholesale, else seed, else give up.
+                if llm_ok:
+                    extracted = llm_known
+                    _emit("llm_knowledge_used", {"base_url": llm_known.get("base_url"), "endpoints": len(llm_known.get("endpoints") or {})})
+                elif seed_data:
+                    _emit("seed_fallback", {"reason": "web + LLM knowledge both failed"})
+                    extracted = {
+                        "base_url": seed_data["base_url"],
+                        "auth_type": seed_data["auth_type"],
+                        "auth_config": seed_data["auth_config"],
+                        "endpoints": dict(seed_data["endpoints"]),
+                        "docs_url": seed_data.get("docs_url"),
+                    }
+                else:
+                    _emit("error", {"reason": "no usable docs found — web search and LLM knowledge both failed"})
+                    return None
+            elif llm_ok:
+                # Web gave a valid base_url but the result is THIN. Merge the
+                # model's knowledge to fill gaps; web wins on overlap so any
+                # fresh live data is preserved.
+                merged_eps = dict(llm_known.get("endpoints") or {})
+                merged_eps.update(web_eps)  # web endpoints win on key conflict
+                if merged_eps:
+                    extracted["endpoints"] = merged_eps
+                # Bare/generic auth + no config → trust the model's richer auth
+                # (often the correct OAUTH2 + authorize/token URLs).
+                if web_auth in ("", "API_KEY") and not web_authcfg:
+                    if llm_known.get("auth_type"):
+                        extracted["auth_type"] = llm_known["auth_type"]
+                    if llm_known.get("auth_config"):
+                        extracted["auth_config"] = llm_known["auth_config"]
+                if not extracted.get("docs_url") and llm_known.get("docs_url"):
+                    extracted["docs_url"] = llm_known["docs_url"]
+                _emit("llm_knowledge_merged", {
+                    "endpoints": len(extracted.get("endpoints") or {}),
+                    "auth_type": extracted.get("auth_type"),
+                })
+            # else: web has a valid base_url but the LLM fallback also failed —
+            # keep the thin web extraction; a real base_url still beats nothing.
 
         # For seed tools: merge seed endpoints + auth_config UNDER web data
         # (web wins on conflict). This preserves curated quirks (AWS dispatch
@@ -1304,7 +1605,35 @@ class DynamicAgentService:
                 source=source,
             )
             db.add(row)
-        db.commit()
+        try:
+            db.commit()
+        except StaleDataError:
+            # The row was deleted/changed by a concurrent request between our
+            # load and this UPDATE (e.g. two refreshes racing). Don't crash the
+            # refresh — roll back, then re-insert the freshly-extracted data as
+            # a new row keyed by name.
+            logger.warning(
+                f"stale row during {tool_name} save; rolling back and re-inserting"
+            )
+            db.rollback()
+            db.query(ToolDefinition).filter(
+                ToolDefinition.name == tool_name
+            ).delete()
+            db.commit()
+            row = ToolDefinition(
+                name=tool_name,
+                display_name=display_name,
+                base_url=extracted["base_url"],
+                auth_type=extracted.get("auth_type") or "API_KEY",
+                auth_config=extracted.get("auth_config") or {},
+                endpoints=extracted.get("endpoints") or {},
+                rate_limits=extracted.get("rate_limits"),
+                examples=extracted.get("examples"),
+                docs_url=extracted.get("docs_url"),
+                source=source,
+            )
+            db.add(row)
+            db.commit()
         db.refresh(row)
         _emit(
             "saved",
@@ -1316,6 +1645,436 @@ class DynamicAgentService:
                 "examples_count": len(row.examples or []),
             },
         )
+        return row
+
+    def _render_and_crawl(
+        self,
+        url: str,
+        status_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+        max_pages: int = 25,
+        max_depth: int = 3,
+        time_budget_s: float = 200.0,
+        char_cap: int = 140000,
+    ) -> str:
+        """Give it an INDEX/landing URL; it recursively renders and crawls the
+        whole same-section doc tree (headless, server-side) and returns the
+        aggregated readable text of every page that actually lists endpoints.
+
+        Breadth-first within the URL's path section (e.g. /en-us/linkedin/*),
+        rendering each page so JavaScript-built nav + content are visible. Index
+        pages contribute their links; pages with real API signals contribute
+        their text. Bounded by max_pages / max_depth / a wall-clock budget so a
+        giant doc site can't run forever. The start page's text is always kept
+        (it usually holds the base URL + auth overview)."""
+        from urllib.parse import urlsplit
+        from bs4 import BeautifulSoup
+        import time as _time
+
+        def _emit(step: str, data: Optional[Dict[str, Any]] = None) -> None:
+            if status_callback:
+                try:
+                    status_callback(step, data or {})
+                except Exception:
+                    pass
+
+        base = urlsplit(url)
+        section = base.path.rstrip("/") or "/"
+        deadline = _time.time() + time_budget_s
+        visited: set = set()
+        queue: List[Tuple[str, int]] = [(url, 0)]
+        collected: List[str] = []
+        total_chars = 0
+        rendered = 0
+
+        while queue and rendered < max_pages and _time.time() < deadline:
+            cur, depth = queue.pop(0)
+            if cur in visited:
+                continue
+            visited.add(cur)
+            html = _render_html(cur, settle_ms=1200)
+            rendered += 1
+            if not html:
+                continue
+            text = BeautifulSoup(html, "html.parser").get_text("\n")
+            # Keep text from the start page (base/auth context) and from any
+            # page that actually documents endpoints.
+            if cur == url or _has_api_signals(text):
+                snippet = f"### {cur}\n{text}"
+                collected.append(snippet)
+                total_chars += len(snippet)
+                _emit("page_collected", {"url": cur, "pages": len(collected)})
+            # Harvest deeper same-section links from the rendered DOM.
+            if depth < max_depth and total_chars < char_cap:
+                links = self._extract_links_from_html(html, cur, max_links=200)
+                cands: List[str] = []
+                for l in links:
+                    ls = urlsplit(l)
+                    if (
+                        ls.netloc == base.netloc
+                        and ls.path.rstrip("/").startswith(section)
+                        and l not in visited
+                    ):
+                        cands.append(l)
+                # Most API-reference-looking links first.
+                for l in sorted(set(cands), key=self._score_api_link, reverse=True):
+                    queue.append((l, depth + 1))
+            _emit("crawl_progress", {
+                "rendered": rendered, "queued": len(queue),
+                "collected": len(collected),
+            })
+            if total_chars >= char_cap:
+                break
+
+        return "\n\n".join(collected)
+
+    def _resolve_paid_llm(
+        self, db: Optional[Session], user_id: Optional[int]
+    ) -> Optional[Tuple[str, str, str]]:
+        """Find a usable paid model for high-accuracy extraction.
+
+        Prefers a per-user key added on the dashboard (UserAPIKey), then the
+        env-configured keys. Returns (provider, model, api_key) or None. Claude
+        is preferred over GPT for structured-doc extraction."""
+        # 1) Per-user dashboard keys (encrypted).
+        if db is not None and user_id is not None:
+            try:
+                rows = (
+                    db.query(UserAPIKey)
+                    .filter(UserAPIKey.user_id == user_id, UserAPIKey.is_active == True)  # noqa: E712
+                    .all()
+                )
+                by_provider = {}
+                for r in rows:
+                    prov = (r.provider or "").lower()
+                    if prov in ("anthropic", "openai") and r.api_key:
+                        by_provider.setdefault(prov, r)
+                for prov in ("anthropic", "openai"):
+                    r = by_provider.get(prov)
+                    if r:
+                        try:
+                            key = decrypt_api_key(r.api_key)
+                        except Exception:
+                            key = r.api_key  # tolerate plaintext legacy rows
+                        if key:
+                            default_model = (
+                                settings.ANTHROPIC_MODEL if prov == "anthropic"
+                                else settings.OPENAI_MODEL
+                            )
+                            return prov, (r.model_name or default_model), key
+            except Exception as exc:
+                logger.debug(f"per-user key lookup failed: {exc}")
+        # 2) Env-configured keys.
+        if getattr(settings, "ANTHROPIC_API_KEY", None):
+            return "anthropic", settings.ANTHROPIC_MODEL, settings.ANTHROPIC_API_KEY
+        if getattr(settings, "OPENAI_API_KEY", None):
+            return "openai", settings.OPENAI_MODEL, settings.OPENAI_API_KEY
+        return None
+
+    def _extract_json_smart(
+        self,
+        system: str,
+        user: str,
+        *,
+        num_predict: int = 8192,
+        db: Optional[Session] = None,
+        user_id: Optional[int] = None,
+        status_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+    ) -> Dict[str, Any]:
+        """Extract a JSON envelope, preferring a configured paid model (Claude/
+        GPT) for accuracy and falling back to the local 3B model otherwise.
+
+        When no paid key is available we emit a one-time ``model_warning`` so
+        the UI can tell the user 'using the local model — add a Claude/OpenAI
+        key for higher accuracy on complex docs'."""
+        def _emit(step: str, data: Optional[Dict[str, Any]] = None) -> None:
+            if status_callback:
+                try:
+                    status_callback(step, data or {})
+                except Exception:
+                    pass
+
+        paid = self._resolve_paid_llm(db, user_id)
+        if paid:
+            provider, model, key = paid
+            prompt = (
+                f"{system}\n\n{user}\n\n"
+                "Respond with ONLY the JSON object — no prose, no markdown fences."
+            )
+            try:
+                if provider == "anthropic":
+                    text, _ = self.llm.query_anthropic(
+                        prompt, model=model, temperature=0.0, api_key=key,
+                        max_tokens=min(num_predict, 8192),
+                    )
+                else:
+                    text, _ = self.llm.query_openai(
+                        prompt, model=model, temperature=0.0, api_key=key,
+                        max_tokens=min(num_predict, 8192),
+                    )
+                blob = _extract_first_json_object(text) or text
+                return json.loads(blob)
+            except Exception as exc:
+                logger.warning(
+                    f"paid-model extraction failed ({provider}); "
+                    f"falling back to local model: {exc}"
+                )
+                _emit("model_warning", {
+                    "reason": f"{provider} extraction failed, using local model",
+                })
+                # fall through to Ollama
+        else:
+            _emit("model_warning", {
+                "reason": "no Claude/OpenAI key configured — using the local "
+                          "model. Add a key on the dashboard for higher accuracy "
+                          "on complex docs.",
+            })
+        return _ollama_chat_json(system, user, temperature=0.0, num_predict=num_predict, num_ctx=32768)
+
+    def _extract_from_doc_text(
+        self,
+        text: str,
+        tool_name: str,
+        origin: str,
+        db: Optional[Session] = None,
+        user_id: Optional[int] = None,
+        status_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Extract a tool definition from (possibly large, multi-page) doc text.
+
+        Splits the text into context-sized chunks, runs the LLM extractor on
+        each, and MERGES the results — union of endpoints across chunks, with
+        base_url / auth / docs taken from the first chunk that yields them. This
+        is what lets a whole crawled doc tree contribute all its endpoints
+        instead of only what fits in a single prompt."""
+        def _emit(step: str, data: Optional[Dict[str, Any]] = None) -> None:
+            if status_callback:
+                try:
+                    status_callback(step, data or {})
+                except Exception:
+                    pass
+
+        CHUNK = 28000
+        text = text[:140000]
+        chunks = [text[i:i + CHUNK] for i in range(0, len(text), CHUNK)] or [text]
+        merged_eps: Dict[str, Any] = {}
+        base_url = auth_type = docs_url = None
+        auth_config: Dict[str, Any] = {}
+        rate_limits = examples = None
+
+        for idx, ch in enumerate(chunks):
+            _emit("llm_extracting", {"chunk": idx + 1, "of": len(chunks)})
+            user_msg = (
+                f"Tool name: {tool_name}\nSource: {origin}\n\n"
+                f"DOC CONTENT (part {idx + 1} of {len(chunks)}):\n\n{ch}\n\n"
+                f"Return the JSON envelope described in the system prompt."
+            )
+            try:
+                part = self._extract_json_smart(
+                    _DOCS_EXTRACT_SYSTEM, user_msg,
+                    num_predict=8192, db=db, user_id=user_id,
+                    status_callback=status_callback,
+                )
+            except Exception:
+                continue
+            part = self._normalize_extracted_docs(part or {}, tool_name)
+            for k, v in (part.get("endpoints") or {}).items():
+                merged_eps.setdefault(k, v)
+            if not base_url and part.get("base_url") and not _is_placeholder_url(part["base_url"]):
+                base_url = part["base_url"]
+            if (not auth_type or auth_type == "API_KEY") and part.get("auth_type"):
+                auth_type = part["auth_type"]
+                if part.get("auth_config"):
+                    auth_config = part["auth_config"]
+            if not docs_url and part.get("docs_url"):
+                docs_url = part["docs_url"]
+            if not rate_limits and part.get("rate_limits"):
+                rate_limits = part["rate_limits"]
+            if not examples and part.get("examples"):
+                examples = part["examples"]
+
+        if not base_url and not merged_eps:
+            return None
+        return {
+            "display_name": tool_name.title(),
+            "base_url": base_url,
+            "auth_type": auth_type,
+            "auth_config": auth_config,
+            "endpoints": merged_eps,
+            "docs_url": docs_url,
+            "rate_limits": rate_limits,
+            "examples": examples,
+        }
+
+    def import_tool_from_source(
+        self,
+        db: Session,
+        tool_name: str,
+        *,
+        source_url: Optional[str] = None,
+        file_bytes: Optional[bytes] = None,
+        filename: Optional[str] = None,
+        content_type: Optional[str] = None,
+        user_id: Optional[int] = None,
+        status_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+    ) -> Optional[ToolDefinition]:
+        """Build a tool definition from a USER-SUPPLIED source instead of web
+        discovery. The most reliable path: the user hands us the exact doc.
+
+        Two source shapes (one required):
+          • ``source_url``  — a link to an OpenAPI/Swagger spec or a doc page.
+          • ``file_bytes``  — an uploaded file (OpenAPI JSON/YAML, or any text/
+            markdown/HTML doc). ``filename`` is used only for type hints.
+
+        Strategy, best → fallback:
+          1. If the content parses as an OpenAPI/Swagger spec → native parse →
+             ALL endpoints, exact (no LLM guessing). This is the 100%-accurate
+             path and the whole point of letting users supply the spec.
+          2. Otherwise treat it as prose docs → LLM extraction over the text.
+
+        The result is saved as a ToolDefinition with source 'user-import' (or
+        'user-import+openapi') so it's never silently overwritten by a web
+        refresh of lower quality."""
+        tool_name = (tool_name or "").strip().lower()
+        if not tool_name:
+            return None
+
+        def _emit(step: str, data: Optional[Dict[str, Any]] = None) -> None:
+            if status_callback:
+                try:
+                    status_callback(step, data or {})
+                except Exception:
+                    logger.exception("status_callback raised; ignoring")
+
+        # ---- 1. Obtain raw text (ANY format: PDF/Word/HTML/JSON/YAML/text) -
+        raw_text: str = ""
+        origin_url = source_url or (filename or "uploaded-file")
+        if source_url:
+            _emit("fetching_source", {"url": source_url})
+            try:
+                resp = requests.get(
+                    source_url, timeout=25,
+                    headers={"User-Agent": "Adaptora-DocImport/1.0"},
+                )
+                resp.raise_for_status()
+                # Use raw bytes + content-type so a PDF/Word/HTML URL works too
+                # — not just plain-text/JSON URLs.
+                ct = resp.headers.get("Content-Type", "")
+                raw_text = _extract_text_from_bytes(resp.content, source_url, ct)
+                # JS-heavy doc sites (Microsoft Learn, modern API portals) hand
+                # back an empty shell over plain HTTP — the real content + nav
+                # links are injected by JavaScript. If what we got has no API
+                # signals AND isn't already a spec, re-render in headless
+                # Chromium and crawl its sub-pages (all server-side, invisible).
+                head = raw_text.lstrip()[:200].lower()
+                is_specish = head[:1] == "{" or "openapi" in head or "swagger" in head
+                if not is_specish and not _has_api_signals(raw_text):
+                    _emit("rendering", {"url": source_url})
+                    rendered = self._render_and_crawl(source_url, status_callback=status_callback)
+                    if rendered and len(rendered) > len(raw_text):
+                        raw_text = rendered
+            except Exception as exc:
+                _emit("error", {"reason": f"could not fetch source_url: {exc}"})
+                logger.warning(f"import fetch failed for {tool_name}: {exc}")
+                return None
+        elif file_bytes is not None:
+            _emit("reading_file", {"filename": filename, "bytes": len(file_bytes)})
+            raw_text = _extract_text_from_bytes(
+                file_bytes, filename or "", content_type or "",
+            )
+        if not raw_text.strip():
+            _emit("error", {
+                "reason": "couldn't read any text from that file/URL "
+                "(if it's a scanned image, OCR isn't supported yet)"
+            })
+            return None
+
+        # ---- 2. Try OpenAPI/Swagger native parse (accurate path) ----------
+        spec: Optional[Dict[str, Any]] = None
+        stripped = raw_text.lstrip()
+        try:
+            if stripped.startswith("{"):
+                spec = json.loads(raw_text)
+            else:
+                import yaml  # type: ignore
+                loaded = yaml.safe_load(raw_text)
+                if isinstance(loaded, dict):
+                    spec = loaded
+        except Exception:
+            spec = None
+
+        extracted: Optional[Dict[str, Any]] = None
+        source_label = "user-import"
+        if isinstance(spec, dict) and (spec.get("openapi") or spec.get("swagger") or spec.get("paths")):
+            _emit("parsing_openapi", {})
+            parsed = self._parse_openapi_payload(spec, origin_url)
+            if parsed and parsed.get("endpoints"):
+                extracted = parsed
+                source_label = "user-import+openapi"
+                _emit("openapi_parsed", {"endpoints": len(parsed["endpoints"])})
+
+        # ---- 3. Fallback: LLM extraction over the supplied doc text -------
+        # Chunked + merged so a large crawled doc tree contributes ALL its
+        # endpoints, not just the first prompt's worth.
+        if extracted is None:
+            extracted = self._extract_from_doc_text(
+                raw_text, tool_name, origin_url,
+                db=db, user_id=user_id, status_callback=status_callback,
+            )
+            if extracted is None:
+                _emit("error", {"reason": "LLM could not extract endpoints from the doc"})
+                return None
+
+        if not extracted or not extracted.get("base_url"):
+            _emit("error", {"reason": "could not determine API base_url from the supplied doc"})
+            return None
+        if not extracted.get("endpoints"):
+            _emit("error", {"reason": "no endpoints found in the supplied doc"})
+            return None
+
+        # Specs sometimes declare a RELATIVE server url (e.g. Swagger Petstore's
+        # "/api/v3"). Resolve it against the source URL's host so calls have a
+        # real absolute base. Falls back to the source host root if needed.
+        bu = extracted["base_url"]
+        if bu.startswith("/") and source_url:
+            host = _url_host(source_url)
+            if host:
+                scheme = "https" if source_url.lower().startswith("https") else "http"
+                extracted["base_url"] = f"{scheme}://{host}{bu}".rstrip("/")
+
+        # ---- 4. Save (resilient to concurrent row changes) ----------------
+        if extracted.get("docs_url") and _is_placeholder_url(extracted["docs_url"]):
+            extracted.pop("docs_url", None)
+        display_name = extracted.get("display_name") or tool_name.title()
+        row = db.query(ToolDefinition).filter(ToolDefinition.name == tool_name).first()
+        fields = dict(
+            display_name=display_name,
+            base_url=extracted["base_url"],
+            auth_type=extracted.get("auth_type") or "API_KEY",
+            auth_config=extracted.get("auth_config") or {},
+            endpoints=extracted.get("endpoints") or {},
+            rate_limits=extracted.get("rate_limits"),
+            examples=extracted.get("examples"),
+            docs_url=extracted.get("docs_url") or (source_url if source_url else None),
+            source=source_label,
+        )
+        try:
+            if row:
+                for k, v in fields.items():
+                    setattr(row, k, v)
+                row.last_fetched_at = datetime.utcnow()
+            else:
+                row = ToolDefinition(name=tool_name, **fields)
+                db.add(row)
+            db.commit()
+        except StaleDataError:
+            db.rollback()
+            db.query(ToolDefinition).filter(ToolDefinition.name == tool_name).delete()
+            db.commit()
+            row = ToolDefinition(name=tool_name, **fields)
+            db.add(row)
+            db.commit()
+        db.refresh(row)
+        _emit("saved", {"endpoint_count": len(row.endpoints or {}), "auth_type": row.auth_type, "source": source_label})
         return row
 
     # Targeted query templates run in parallel against the search engine so
@@ -1587,13 +2346,14 @@ class DynamicAgentService:
         # Better to have a likely-correct base_url than to throw away
         # the whole extraction (which still has useful auth + examples).
         if not extracted.get("base_url"):
-            if llm_urls.get("api_base_url"):
-                extracted["base_url"] = llm_urls["api_base_url"]
+            llm_api_base = llm_urls.get("api_base_url")
+            if llm_api_base and not _is_placeholder_url(llm_api_base):
+                extracted["base_url"] = llm_api_base
             else:
                 fallback = self._guess_base_url_from_results(
                     merged_results, base_url_hint
                 )
-                if fallback:
+                if fallback and not _is_placeholder_url(fallback):
                     extracted["base_url"] = fallback
 
         # Final check: we MUST have a base_url to call the API. If even
@@ -1628,7 +2388,10 @@ class DynamicAgentService:
             except Exception:
                 continue
             host = (parts.netloc or "").strip().lower()
-            if host:
+            # Never derive an API host from a content farm / forum / reseller
+            # (dev.to, proxycurl, stackoverflow, …) — those are never the
+            # provider's real API surface.
+            if host and not any(d in host for d in _LOW_TRUST_DOC_DOMAINS):
                 hosts.append(host)
         if not hosts:
             return None
@@ -1926,6 +2689,13 @@ class DynamicAgentService:
             # call (those finish in the background and their result is
             # garbage-collected).
             pool.shutdown(wait=False, cancel_futures=True)
+
+        # Rank official/first-party docs to the top and content-farm blogs to
+        # the bottom. Downstream steps (OpenAPI probe, page fetch, LLM extract,
+        # base_url guess) consume this order, so the official reference gets
+        # read first and wins — instead of whichever blog the engine ranked #1.
+        # Stable sort: ties keep the engine's original ordering.
+        merged.sort(key=lambda r: _score_doc_result(r, tool_name), reverse=True)
 
         return merged, engines_used
 
@@ -2846,8 +3616,20 @@ class DynamicAgentService:
             }
         if isinstance(extracted.get("base_url"), str):
             extracted["base_url"] = _sanitize_url_string(extracted["base_url"])
+            # Drop documentation placeholders (api.example.com, your-domain.com,
+            # localhost, leftover {templates}). Leaving the key absent makes the
+            # caller's `not extracted.get("base_url")` guard fall back to the
+            # LLM's real knowledge of the tool instead of saving a dead host.
+            if _is_placeholder_url(extracted["base_url"]):
+                logger.info(
+                    f"discarding placeholder base_url "
+                    f"{extracted['base_url']!r} for {tool_name}"
+                )
+                extracted.pop("base_url", None)
         if isinstance(extracted.get("docs_url"), str):
             extracted["docs_url"] = _sanitize_url_string(extracted["docs_url"])
+            if _is_placeholder_url(extracted["docs_url"]):
+                extracted.pop("docs_url", None)
         for ep in (extracted.get("endpoints") or {}).values():
             if isinstance(ep, dict) and isinstance(ep.get("path"), str):
                 ep["path"] = _normalize_endpoint(ep["path"])

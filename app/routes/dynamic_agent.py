@@ -28,7 +28,17 @@ import urllib.parse
 from typing import Any, Dict, List, Optional
 
 import requests as http_requests
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File as FastAPIFile,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import RedirectResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func
@@ -510,6 +520,65 @@ async def refresh_tool(
         "source": tool.source,
         "endpoint_count": len(tool.endpoints or {}),
         "last_fetched_at": tool.last_fetched_at.isoformat() if tool.last_fetched_at else None,
+    }
+
+
+@router.post("/tools/import")
+async def import_tool(
+    tool: str = Form(...),
+    spec_url: Optional[str] = Form(None),
+    file: Optional[UploadFile] = FastAPIFile(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Build a tool from a USER-SUPPLIED source instead of web discovery.
+
+    Send multipart/form-data with `tool` and ONE of:
+      • `spec_url`  — link to an OpenAPI/Swagger spec or a doc page, or
+      • `file`      — an uploaded OpenAPI JSON/YAML (most accurate) or any
+                      text / markdown / HTML doc.
+
+    An OpenAPI/Swagger spec is parsed natively → all endpoints, exact. Other
+    docs are extracted by the LLM from the supplied content."""
+    name = (tool or "").strip().lower()
+    if not name:
+        raise HTTPException(status_code=400, detail="`tool` is required")
+
+    spec_url = (spec_url or "").strip() or None
+    file_bytes: Optional[bytes] = None
+    filename: Optional[str] = None
+    file_ct: Optional[str] = None
+    if file is not None:
+        file_bytes = await file.read()
+        filename = file.filename
+        file_ct = file.content_type
+    if not spec_url and not file_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide either `spec_url` or a `file` upload.",
+        )
+
+    try:
+        result = dynamic_agent_service.import_tool_from_source(
+            db, name, source_url=spec_url, file_bytes=file_bytes,
+            filename=filename, content_type=file_ct, user_id=current_user.id,
+        )
+    except Exception as exc:
+        logger.exception("tool import failed")
+        raise HTTPException(status_code=500, detail=f"Import failed: {exc}")
+
+    if not result:
+        raise HTTPException(
+            status_code=422,
+            detail="Couldn't build a tool from that source — make sure it's an "
+            "OpenAPI/Swagger spec or a doc page that lists endpoints + base URL.",
+        )
+    return {
+        "name": result.name,
+        "source": result.source,
+        "base_url": result.base_url,
+        "auth_type": result.auth_type,
+        "endpoint_count": len(result.endpoints or {}),
     }
 
 

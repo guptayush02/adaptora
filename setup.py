@@ -48,6 +48,6 @@ setup(
     ],
     classifiers=[
         "Programming Language :: Python :: 3.11",
-        "License :: OSI Approved :: Apache Software License",
+        "License :: OSI Approved :: MIT License",
     ],
 )

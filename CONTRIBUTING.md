@@ -151,4 +151,4 @@ We treat these reports seriously and aim to ship a fix within 7 days for high-se
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the same Business Source License 1.1 (BUSL-1.1) that covers the project.
+By contributing, you agree that your contributions will be licensed under the same MIT License that covers the project.

@@ -47,6 +47,10 @@ function AppShell({ children }) {
         </header>
 
         <main className="app-content">{children}</main>
+
+        <footer className="app-footer">
+          © {new Date().getFullYear()} Adaptora. All rights reserved.
+        </footer>
       </div>
     </div>
   );

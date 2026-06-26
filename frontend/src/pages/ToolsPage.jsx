@@ -11,6 +11,8 @@ import {
   FiCheckCircle,
   FiAlertCircle,
   FiLink,
+  FiPlus,
+  FiUpload,
 } from 'react-icons/fi';
 import Modal from '../components/Modal';
 import { dynamicAgentService } from '../services/api';
@@ -401,6 +403,13 @@ function ToolsPage() {
   const [credValues, setCredValues] = useState({});
   const [savingCreds, setSavingCreds] = useState(false);
 
+  // Import-from-source modal (OpenAPI spec URL or uploaded file)
+  const [importOpen, setImportOpen] = useState(false);
+  const [importName, setImportName] = useState('');
+  const [importUrl, setImportUrl] = useState('');
+  const [importFile, setImportFile] = useState(null);
+  const [importing, setImporting] = useState(false);
+
   const loadTools = useCallback(async () => {
     setLoading(true);
     try {
@@ -486,6 +495,51 @@ function ToolsPage() {
       }
     },
     [credModal, credValues, loadTools]
+  );
+
+  const resetImport = useCallback(() => {
+    setImportOpen(false);
+    setImportName('');
+    setImportUrl('');
+    setImportFile(null);
+  }, []);
+
+  const handleImport = useCallback(
+    async (e) => {
+      e?.preventDefault?.();
+      const name = importName.trim().toLowerCase();
+      if (!name) {
+        toast.error('Tool name is required');
+        return;
+      }
+      if (!importUrl.trim() && !importFile) {
+        toast.error('Provide a spec/doc URL or upload a file');
+        return;
+      }
+      setImporting(true);
+      const t = toast.loading(`Importing ${name}…`);
+      try {
+        const res = await dynamicAgentService.importTool({
+          tool: name,
+          specUrl: importUrl.trim(),
+          file: importFile,
+        });
+        toast.success(
+          `Imported ${res.name} · ${res.endpoint_count} endpoints (${res.source})`,
+          { id: t }
+        );
+        resetImport();
+        await loadTools();
+      } catch (err) {
+        toast.error(
+          err?.response?.data?.detail || err?.message || 'Import failed',
+          { id: t }
+        );
+      } finally {
+        setImporting(false);
+      }
+    },
+    [importName, importUrl, importFile, loadTools, resetImport]
   );
 
   useEffect(() => {
@@ -593,14 +647,23 @@ function ToolsPage() {
             auth, rate limits, and examples.
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={loadTools}
-          disabled={loading}
-        >
-          <FiRefreshCw className={loading ? 'spin' : ''} /> Reload
-        </button>
+        <div className="tools-header-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setImportOpen(true)}
+          >
+            <FiPlus /> Import tool
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={loadTools}
+            disabled={loading}
+          >
+            <FiRefreshCw className={loading ? 'spin' : ''} /> Reload
+          </button>
+        </div>
       </header>
 
       <div className="tools-toolbar">
@@ -702,6 +765,79 @@ function ToolsPage() {
             ) : null}
           </div>
         ) : null}
+      </Modal>
+
+      <Modal
+        open={importOpen}
+        onClose={() => {
+          if (!importing) resetImport();
+        }}
+        title="Import a tool from its docs"
+      >
+        <form onSubmit={handleImport} className="tool-cred-form">
+          <p className="tool-cred-intro">
+            The most accurate way to add a tool: give Adaptora its{' '}
+            <strong>OpenAPI/Swagger spec</strong> (JSON/YAML) and every endpoint
+            is parsed exactly — no web guessing. You can also paste a docs URL or
+            upload any doc file (the LLM extracts endpoints from it).
+          </p>
+
+          <label className="tool-cred-field">
+            <span className="tool-cred-field-label">Tool name *</span>
+            <input
+              type="text"
+              placeholder="e.g. linkedin, stripe, myapi"
+              value={importName}
+              onChange={(e) => setImportName(e.target.value)}
+              autoComplete="off"
+            />
+          </label>
+
+          <label className="tool-cred-field">
+            <span className="tool-cred-field-label">Spec / docs URL</span>
+            <input
+              type="url"
+              placeholder="https://api.example.com/openapi.json"
+              value={importUrl}
+              onChange={(e) => setImportUrl(e.target.value)}
+              disabled={!!importFile}
+              autoComplete="off"
+            />
+            <span className="tool-cred-field-hint">
+              An OpenAPI/Swagger spec URL gives the best result.
+            </span>
+          </label>
+
+          <label className="tool-cred-field">
+            <span className="tool-cred-field-label">
+              <FiUpload /> …or upload a file
+            </span>
+            <input
+              type="file"
+              accept=".json,.yaml,.yml,.md,.txt,.html,.htm"
+              onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+              disabled={!!importUrl.trim()}
+            />
+            <span className="tool-cred-field-hint">
+              OpenAPI JSON/YAML (most accurate), or a Markdown/HTML/text doc.
+            </span>
+          </label>
+
+          <div className="tool-cred-actions">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={resetImport}
+              disabled={importing}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={importing}>
+              <FiPlus className={importing ? 'spin' : ''} />
+              {importing ? 'Importing…' : 'Import'}
+            </button>
+          </div>
+        </form>
       </Modal>
 
       <Modal

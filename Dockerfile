@@ -49,6 +49,12 @@ RUN pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir -r requirements.txt \
  && pip install --no-cache-dir 'psycopg2-binary>=2.9'
 
+# Headless Chromium for rendering JavaScript-heavy doc sites (e.g. Microsoft
+# Learn / LinkedIn docs) so the dynamic extractor can read content that isn't
+# present in the static HTML. `--with-deps` installs the required system libs.
+# Runs entirely server-side and invisible — no GUI, nothing the end user sees.
+RUN playwright install --with-deps chromium
+
 # Backend source.
 COPY main.py ./
 COPY mcp_server.py ./

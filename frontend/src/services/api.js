@@ -484,6 +484,19 @@ export const dynamicAgentService = {
     api
       .post('/api/dynamic-agent/tools/refresh', { tool })
       .then((r) => r.data),
+  // Import a tool from a user-supplied source: an OpenAPI/Swagger spec URL,
+  // or an uploaded file (spec or doc). Most accurate way to onboard a tool.
+  importTool: ({ tool, specUrl = '', file = null }) => {
+    const form = new FormData();
+    form.append('tool', tool);
+    if (specUrl) form.append('spec_url', specUrl);
+    if (file) form.append('file', file);
+    return api
+      .post('/api/dynamic-agent/tools/import', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data);
+  },
   streamRefreshTool: streamRefreshTool,
   listLogs: ({ limit = 50, offset = 0, tool = '', source = '', status = '' } = {}) =>
     api

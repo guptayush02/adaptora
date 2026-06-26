@@ -1822,6 +1822,7 @@ Do NOT add a "## Sources" section — a verified one is appended automatically. 
         model: Optional[str] = None,
         temperature: float = 0.7,
         api_key: Optional[str] = None,
+        max_tokens: Optional[int] = None,
     ) -> Tuple[str, Dict[str, int]]:
         """Query OpenAI API"""
         try:
@@ -1835,11 +1836,14 @@ Do NOT add a "## Sources" section — a verified one is appended automatically. 
 
             client = OpenAI(api_key=api_key)
 
-            response = client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=temperature,
-            )
+            create_kwargs = {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": temperature,
+            }
+            if max_tokens:
+                create_kwargs["max_tokens"] = max_tokens
+            response = client.chat.completions.create(**create_kwargs)
 
             response_text = response.choices[0].message.content
             tokens_used = {
@@ -1861,6 +1865,7 @@ Do NOT add a "## Sources" section — a verified one is appended automatically. 
         model: Optional[str] = None,
         temperature: float = 0.7,
         api_key: Optional[str] = None,
+        max_tokens: int = 1024,
     ) -> Tuple[str, Dict[str, int]]:
         """Query Anthropic Claude API"""
         try:
@@ -1876,7 +1881,7 @@ Do NOT add a "## Sources" section — a verified one is appended automatically. 
 
             response = client.messages.create(
                 model=model,
-                max_tokens=1024,
+                max_tokens=max_tokens,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=temperature,
             )
