@@ -236,9 +236,14 @@ def _meta_tool_defs() -> List[Tool]:
         Tool(
             name=_META_SETUP,
             description=(
-                "Discover documentation for an arbitrary API tool and seed "
-                "it into the agent. Runs the full pipeline: web search → "
-                "OpenAPI spec probing → LLM extraction → endpoint merging. "
+                "Discover documentation for an arbitrary API tool and set "
+                "it up in the agent. Two modes:\n"
+                "• Give just `tool` → web search → OpenAPI spec parsing → "
+                "LLM extraction from the fetched docs.\n"
+                "• Give `tool` + `source_url` (an OpenAPI/Swagger spec link "
+                "or a doc page the user supplied) → build the tool from THAT "
+                "doc only, no web search. Use this whenever the user pastes a "
+                "documentation link in chat.\n"
                 "Returns the tool's auth requirements so the next step is "
                 "to provide credentials via your usual config (the agent "
                 "doesn't accept credentials over MCP for security reasons)."
@@ -249,6 +254,15 @@ def _meta_tool_defs() -> List[Tool]:
                     "tool": {
                         "type": "string",
                         "description": "Canonical lowercase tool name (e.g. 'github', 'stripe', 'shopify').",
+                    },
+                    "source_url": {
+                        "type": "string",
+                        "description": (
+                            "Optional. A user-supplied link to the tool's "
+                            "OpenAPI/Swagger spec or documentation page. When "
+                            "present, the tool is built from this doc only and "
+                            "the web search is skipped."
+                        ),
                     },
                     "force_refresh": {
                         "type": "boolean",
@@ -782,6 +796,7 @@ async def _call_setup_new_tool(
     tool = (args.get("tool") or "").strip().lower()
     if not tool:
         return _json_block({"error": "tool name is required"})
+    source_url = (args.get("source_url") or "").strip() or None
     force = bool(args.get("force_refresh", False))
     loop = asyncio.get_event_loop()
     cb, queue = _make_progress_callback(server, loop) if server else (None, asyncio.Queue())
@@ -789,29 +804,41 @@ async def _call_setup_new_tool(
         _progress_emitter_task(server, queue, progress_token, request_id=request_id)
     ) if server else None
     try:
-        tool_def = await asyncio.to_thread(
-            dynamic_agent_service.lookup_or_fetch_docs,
-            db,
-            tool,
-            force_refresh=force,
-            status_callback=cb,
-        )
+        if source_url:
+            # User supplied the exact doc — build from THAT only, no web search.
+            tool_def = await asyncio.to_thread(
+                dynamic_agent_service.import_tool_from_source,
+                db,
+                tool,
+                source_url=source_url,
+                status_callback=cb,
+            )
+        else:
+            tool_def = await asyncio.to_thread(
+                dynamic_agent_service.lookup_or_fetch_docs,
+                db,
+                tool,
+                force_refresh=force,
+                status_callback=cb,
+            )
     finally:
         await queue.put(None)
         if emitter:
             await emitter
     if not tool_def:
-        return _json_block(
-            {
-                "error": (
-                    f"Couldn't fetch docs for `{tool}`. We tried the web "
-                    f"search, every common OpenAPI URL pattern, and the "
-                    f"hosts returned by the search engine — nothing "
-                    f"yielded a usable spec."
-                ),
-                "tool": tool,
-            }
-        )
+        if source_url:
+            err = (
+                f"Couldn't build `{tool}` from {source_url}. Make sure it's an "
+                f"OpenAPI/Swagger spec or a doc page that lists endpoints + a "
+                f"base URL."
+            )
+        else:
+            err = (
+                f"Couldn't fetch docs for `{tool}` from the web. No usable "
+                f"OpenAPI spec or documentation page was found. Try passing a "
+                f"`source_url` with the tool's official docs link."
+            )
+        return _json_block({"error": err, "tool": tool})
     return _json_block(
         {
             "ok": True,
@@ -821,6 +848,7 @@ async def _call_setup_new_tool(
             "auth_type": tool_def.auth_type,
             "endpoint_count": len(tool_def.endpoints or {}),
             "endpoints": list((tool_def.endpoints or {}).keys()),
+            "quirks": tool_def.quirks or [],
             "source": tool_def.source,
             "docs_url": tool_def.docs_url,
             "next_step": (

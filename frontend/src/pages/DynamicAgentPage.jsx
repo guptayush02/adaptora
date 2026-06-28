@@ -12,6 +12,8 @@ import {
   FiGlobe,
   FiSliders,
   FiX,
+  FiPaperclip,
+  FiSquare,
 } from 'react-icons/fi';
 import { dynamicAgentService } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -89,6 +91,10 @@ const STEP_LABELS = {
       d?.tool ? `Tool: ${d.tool}` : 'Tool identified',
     looking_up_docs: (d) =>
       d?.tool ? `Loading ${d.tool} docs…` : 'Loading docs…',
+    importing_doc: (d) =>
+      d?.filename
+        ? `Reading ${d.filename}…`
+        : 'Reading the doc you provided…',
     docs_loaded: (d) =>
       d?.tool ? `Docs ready (${d.endpoint_count || 0} endpoints)` : 'Docs ready',
     checking_connection: 'Checking your connection…',
@@ -114,6 +120,10 @@ const STEP_LABELS = {
       d?.tool ? `Tool mil gaya: ${d.tool}` : 'Tool identify ho gaya',
     looking_up_docs: (d) =>
       d?.tool ? `${d.tool} ke docs load kar raha hoon…` : 'Docs load kar raha hoon…',
+    importing_doc: (d) =>
+      d?.filename
+        ? `${d.filename} padh raha hoon…`
+        : 'Aapka diya doc padh raha hoon…',
     docs_loaded: (d) =>
       d?.tool ? `Docs ready (${d.endpoint_count || 0} endpoints)` : 'Docs ready',
     checking_connection: 'Connection check kar raha hoon…',
@@ -201,6 +211,15 @@ function DynamicAgentPage() {
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
+  // Stop support: AbortController cancels the fetch; turnId lets us tell the
+  // server to halt the worker (so no further action runs).
+  const abortRef = useRef(null);
+  const turnIdRef = useRef(null);
+  const stoppedRef = useRef(false);
+  // A doc/spec file the user attached in chat. When set, the turn is built
+  // from this file only (no web search), via the multipart /turn/upload route.
+  const [attachedFile, setAttachedFile] = useState(null);
 
   useEffect(() => {
     localStorage.setItem('dynamicAgentLanguage', language);
@@ -307,25 +326,66 @@ function DynamicAgentPage() {
   const runTurn = async (text) => {
     const p = (text ?? prompt).trim();
     if (!p) return;
+    const file = attachedFile;
     setPrompt('');
+    setAttachedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     const ts = Date.now();
-    setMessages((prev) => [...prev, { role: 'user', id: `u-${ts}`, prompt: p, ts }]);
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', id: `u-${ts}`, prompt: p, ts, attachment: file?.name || null },
+    ]);
     setRunning(true);
     setCurrentStep({ step: 'starting', data: {} });
+    // Fresh per-turn stop state.
+    stoppedRef.current = false;
+    turnIdRef.current = null;
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      // Streaming endpoint: keeps proxies (ALB / nginx / CloudFront) happy
-      // on slow Ollama calls AND drives the per-step label in the UI.
-      const result = await dynamicAgentService.streamTurn({
-        prompt: p,
-        language,
-        onStatus: (evt) => {
-          // The backend sends {step, ...data}. Stash both so the bubble
-          // and the typing indicator can pull the right label.
-          if (evt?.step) {
-            setCurrentStep({ step: evt.step, data: evt });
-          }
-        },
-      });
+      let result;
+      if (file) {
+        // A doc/spec file was attached — multipart route (no SSE for uploads).
+        setCurrentStep({ step: 'importing_doc', data: { filename: file.name } });
+        result = await dynamicAgentService.turnWithFile({ prompt: p, language, file });
+      } else {
+        // Streaming endpoint: keeps proxies (ALB / nginx / CloudFront) happy
+        // on slow Ollama calls AND drives the per-step label in the UI.
+        result = await dynamicAgentService.streamTurn({
+          prompt: p,
+          language,
+          signal: controller.signal,
+          onStatus: (evt) => {
+            // The backend sends {step, ...data}. Stash both so the bubble
+            // and the typing indicator can pull the right label.
+            if (evt?.step === 'turn_started' && evt?.turn_id) {
+              turnIdRef.current = evt.turn_id; // enables server-side Stop
+            }
+            if (evt?.step) {
+              setCurrentStep({ step: evt.step, data: evt });
+            }
+          },
+          onCancelled: () => {
+            stoppedRef.current = true;
+          },
+        });
+      }
+      // User stopped — don't append a result bubble; show a stopped note.
+      if (stoppedRef.current) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'agent',
+            id: `a-${Date.now()}`,
+            ts: Date.now(),
+            turn: {
+              status: 'error',
+              summary: language === 'hinglish' ? 'Roka gaya.' : 'Stopped.',
+            },
+          },
+        ]);
+        return;
+      }
       setMessages((prev) => [
         ...prev,
         { role: 'agent', id: `a-${result.log_id || Date.now()}`, turn: result, ts: Date.now() },
@@ -365,6 +425,22 @@ function DynamicAgentPage() {
 
       refreshSidebar();
     } catch (err) {
+      // Aborted by the user (Stop). Not an error — show a quiet "Stopped".
+      if (err?.name === 'AbortError' || stoppedRef.current) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'agent',
+            id: `a-${Date.now()}`,
+            ts: Date.now(),
+            turn: {
+              status: 'error',
+              summary: language === 'hinglish' ? 'Roka gaya.' : 'Stopped.',
+            },
+          },
+        ]);
+        return;
+      }
       console.error(err);
       const detail = err?.response?.data?.detail || err?.message || 'Agent turn failed';
       toast.error(detail);
@@ -384,13 +460,28 @@ function DynamicAgentPage() {
     } finally {
       setRunning(false);
       setCurrentStep(null);
+      abortRef.current = null;
+      turnIdRef.current = null;
       inputRef.current?.focus();
     }
   };
 
+  // Stop the in-flight turn: tell the server to halt (so no further action
+  // runs), then abort the fetch so the UI returns immediately.
+  const handleStop = () => {
+    if (!running) return;
+    stoppedRef.current = true;
+    const tid = turnIdRef.current;
+    if (tid) {
+      dynamicAgentService.cancelTurn(tid);
+    }
+    abortRef.current?.abort();
+  };
+
   const handleSubmit = (e) => {
     e?.preventDefault?.();
-    if (!running) runTurn();
+    if (running) handleStop();
+    else runTurn();
   };
 
   const handleKeyDown = (e) => {
@@ -580,7 +671,7 @@ function DynamicAgentPage() {
           ) : (
             messages.map((m) =>
               m.role === 'user' ? (
-                <UserBubble key={m.id} prompt={m.prompt} />
+                <UserBubble key={m.id} prompt={m.prompt} attachment={m.attachment} />
               ) : (
                 <AgentBubble key={m.id} turn={m.turn} />
               )
@@ -612,13 +703,55 @@ function DynamicAgentPage() {
 
         {/* composer */}
         <form className="chat-composer" onSubmit={handleSubmit}>
+          {attachedFile && (
+            <div className="chat-attachment-chip">
+              <FiPaperclip />
+              <span className="chat-attachment-name">{attachedFile.name}</span>
+              <button
+                type="button"
+                className="chat-attachment-remove"
+                onClick={() => {
+                  setAttachedFile(null);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                aria-label="Remove attachment"
+              >
+                <FiX />
+              </button>
+            </div>
+          )}
           <div className="chat-input-row">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,.yaml,.yml,.pdf,.docx,.html,.htm,.md,.txt,application/json,application/pdf"
+              style={{ display: 'none' }}
+              onChange={(e) => setAttachedFile(e.target.files?.[0] || null)}
+            />
+            <button
+              type="button"
+              className="btn btn-ghost chat-attach-btn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={running}
+              aria-label={
+                language === 'hinglish'
+                  ? 'Doc ya API spec file attach karein'
+                  : 'Attach a doc or API spec file'
+              }
+              title={
+                language === 'hinglish'
+                  ? 'Doc ya API spec file attach karein'
+                  : 'Attach a doc or API spec file'
+              }
+            >
+              <FiPaperclip />
+            </button>
             <textarea
               ref={inputRef}
               placeholder={
                 language === 'hinglish'
-                  ? 'Type karo… (Enter bhejne ke liye, Shift+Enter new line)'
-                  : 'Type a message… (Enter to send, Shift+Enter for newline)'
+                  ? 'Type karo… (link ya file bhi de sakte ho)'
+                  : 'Type a message… (you can paste a doc link or attach a file)'
               }
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -628,11 +761,13 @@ function DynamicAgentPage() {
             />
             <button
               type="submit"
-              className="btn btn-primary chat-send-btn"
-              disabled={running || !prompt.trim()}
-              aria-label="Send"
+              className={`btn chat-send-btn ${running ? 'btn-danger' : 'btn-primary'}`}
+              // Clickable while running so it acts as Stop.
+              disabled={running ? false : !prompt.trim()}
+              aria-label={running ? 'Stop' : 'Send'}
+              title={running ? (language === 'hinglish' ? 'Roko' : 'Stop') : 'Send'}
             >
-              <FiSend />
+              {running ? <FiSquare /> : <FiSend />}
             </button>
           </div>
         </form>
@@ -794,12 +929,18 @@ function DynamicAgentPage() {
 
 // ─────────────────────────────────────────────────────────────── components
 
-function UserBubble({ prompt }) {
+function UserBubble({ prompt, attachment }) {
   return (
     <div className="chat-message chat-msg-user">
       <div className="chat-avatar">You</div>
       <div className="chat-bubble">
         <div className="chat-bubble-body">{prompt}</div>
+        {attachment && (
+          <div className="chat-attachment-chip" style={{ marginTop: 8, marginBottom: 0 }}>
+            <FiPaperclip />
+            <span className="chat-attachment-name">{attachment}</span>
+          </div>
+        )}
       </div>
     </div>
   );

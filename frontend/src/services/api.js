@@ -86,6 +86,7 @@ async function streamProcessPrompt({
   onStatus,
   onDone,
   onError,
+  signal,
 }) {
   const token = localStorage.getItem('token');
   const response = await fetch(`${API_BASE_URL}/api/process/stream`, {
@@ -107,6 +108,7 @@ async function streamProcessPrompt({
       pre_needs_internet: preNeedsInternet,
       pre_original_prompt: preOriginalPrompt,
     }),
+    signal,
   });
 
   if (!response.ok || !response.body) {
@@ -173,7 +175,7 @@ async function streamProcessPrompt({
 // `error` shape as streamProcessPrompt — the UI uses these events to display
 // the pre-check stages (bypass / complexity / translating / optimizing /
 // internet-needed) instead of a generic spinner.
-async function streamOptimizePrompt({ prompt, onStatus, onDone, onError }) {
+async function streamOptimizePrompt({ prompt, onStatus, onDone, onError, signal }) {
   const token = localStorage.getItem('token');
   const response = await fetch(`${API_BASE_URL}/api/optimize/stream`, {
     method: 'POST',
@@ -183,6 +185,7 @@ async function streamOptimizePrompt({ prompt, onStatus, onDone, onError }) {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({ prompt }),
+    signal,
   });
 
   if (!response.ok || !response.body) {
@@ -277,11 +280,16 @@ export const conversationsService = {
 async function streamDynamicAgentTurn({
   prompt,
   language = 'en',
+  sourceUrl = '',
   onStatus,
   onDone,
   onError,
+  onCancelled,
+  signal,
 }) {
   const token = localStorage.getItem('token');
+  const body = { prompt, language };
+  if (sourceUrl) body.source_url = sourceUrl;
   const response = await fetch(`${API_BASE_URL}/api/dynamic-agent/turn/stream`, {
     method: 'POST',
     headers: {
@@ -289,7 +297,8 @@ async function streamDynamicAgentTurn({
       Accept: 'text/event-stream',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ prompt, language }),
+    body: JSON.stringify(body),
+    signal,
   });
 
   if (!response.ok || !response.body) {
@@ -330,6 +339,11 @@ async function streamDynamicAgentTurn({
         onStatus?.(payload);
       } else if (event === 'done') {
         onDone?.(payload);
+        return payload;
+      } else if (event === 'cancelled') {
+        // Server acknowledged the stop — the turn halted before its next
+        // action. Treat as a clean end, not an error.
+        onCancelled?.(payload);
         return payload;
       } else if (event === 'error') {
         const err = new Error(payload?.error || 'agent pipeline error');
@@ -464,11 +478,36 @@ async function streamRefreshTool({ tool, onStatus, onDone, onError }) {
 
 // Dynamic Agent — Nango-free, runs entirely on the local LLM + raw HTTP.
 export const dynamicAgentService = {
-  turn: (prompt, language = 'en') =>
+  turn: (prompt, language = 'en', sourceUrl = '') =>
     api
-      .post('/api/dynamic-agent/turn', { prompt, language })
+      .post('/api/dynamic-agent/turn', {
+        prompt,
+        language,
+        ...(sourceUrl ? { source_url: sourceUrl } : {}),
+      })
       .then((r) => r.data),
   streamTurn: streamDynamicAgentTurn,
+  // Stop an in-flight streamed turn server-side (halts before the next action).
+  cancelTurn: (turnId) =>
+    api
+      .post(`/api/dynamic-agent/turn/cancel/${encodeURIComponent(turnId)}`)
+      .then((r) => r.data)
+      .catch(() => ({ cancelled: false })),
+  // Chat turn with an attached doc/spec FILE (or a link). Non-streaming —
+  // multipart can't ride the SSE JSON channel. Builds the tool from the
+  // supplied file/link only, never web search.
+  turnWithFile: ({ prompt, language = 'en', file = null, sourceUrl = '' }) => {
+    const form = new FormData();
+    form.append('prompt', prompt);
+    form.append('language', language);
+    if (file) form.append('file', file);
+    if (sourceUrl) form.append('source_url', sourceUrl);
+    return api
+      .post('/api/dynamic-agent/turn/upload', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data);
+  },
   submitCredentials: (tool, credentials) =>
     api
       .post('/api/dynamic-agent/credentials', { tool, credentials })
@@ -520,4 +559,21 @@ export const dynamicAgentService = {
     const base = `${API_BASE_URL}/api/dynamic-agent/oauth/authorize/${encodeURIComponent(toolName)}`;
     return token ? `${base}?token=${encodeURIComponent(token)}` : base;
   },
+  // ---- Webhooks: inbound provider → Adaptora event callbacks ----
+  // Create (or rotate the secret of) the inbound webhook for a tool. The
+  // response includes the one-time `secret` to paste into the provider.
+  createWebhook: (tool) =>
+    api
+      .post('/api/dynamic-agent/webhooks', { tool })
+      .then((r) => r.data),
+  listWebhooks: () =>
+    api.get('/api/dynamic-agent/webhooks').then((r) => r.data),
+  deleteWebhook: (id) =>
+    api.delete(`/api/dynamic-agent/webhooks/${id}`).then((r) => r.data),
+  listWebhookEvents: ({ tool = '', limit = 50 } = {}) =>
+    api
+      .get('/api/dynamic-agent/webhooks/events', {
+        params: { limit, ...(tool ? { tool } : {}) },
+      })
+      .then((r) => r.data),
 };

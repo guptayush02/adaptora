@@ -42,7 +42,9 @@ function formatRelative(iso) {
 }
 
 const SOURCE_LABEL = {
-  seed: 'Built-in',
+  web: 'Auto-fetched',
+  'user-import': 'From your doc',
+  'user-import+openapi': 'From your spec',
   llm: 'Auto-fetched',
   scraped: 'Scraped',
 };
@@ -103,8 +105,9 @@ function statusMessage(evt) {
 }
 
 function SourceBadge({ source }) {
+  // User-supplied docs are the highest-trust source → success styling.
   const cls =
-    source === 'seed'
+    (source || '').startsWith('user-import')
       ? 'tool-badge tool-badge-success'
       : 'tool-badge tool-badge-info';
   return <span className={cls}>{SOURCE_LABEL[source] || source || 'unknown'}</span>;
@@ -268,6 +271,202 @@ function EndpointRow({ name, ep }) {
   );
 }
 
+// Per-tool inbound webhook manager, rendered inside the tool details modal.
+// Self-contained: loads the tool's webhook endpoint + recent deliveries, and
+// lets the user create/rotate/delete it and copy the URL + signing secret.
+function WebhookSection({ toolName }) {
+  const [loading, setLoading] = useState(true);
+  const [endpoint, setEndpoint] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [secret, setSecret] = useState(''); // shown once after create/rotate
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [hooks, evs] = await Promise.all([
+        dynamicAgentService.listWebhooks().catch(() => []),
+        dynamicAgentService
+          .listWebhookEvents({ tool: toolName, limit: 20 })
+          .catch(() => []),
+      ]);
+      const mine =
+        (Array.isArray(hooks) ? hooks : []).find((h) => h.tool === toolName) ||
+        null;
+      setEndpoint(mine);
+      setEvents(Array.isArray(evs) ? evs : []);
+    } finally {
+      setLoading(false);
+    }
+  }, [toolName]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const create = async () => {
+    setBusy(true);
+    try {
+      const res = await dynamicAgentService.createWebhook(toolName);
+      setEndpoint({
+        id: res.id,
+        url: res.url,
+        has_secret: res.has_secret,
+        tool: res.tool,
+      });
+      setSecret(res.secret || '');
+      toast.success(endpoint ? 'Secret rotated' : 'Webhook created');
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Failed to create webhook');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!endpoint) return;
+    setBusy(true);
+    try {
+      await dynamicAgentService.deleteWebhook(endpoint.id);
+      setEndpoint(null);
+      setSecret('');
+      toast.success('Webhook deleted');
+    } catch (e) {
+      toast.error('Failed to delete webhook');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copy = (text, label) => {
+    navigator.clipboard?.writeText(text);
+    toast.success(`${label} copied`);
+  };
+
+  return (
+    <section className="tool-detail-section">
+      <h4>
+        Webhooks
+        {events.length ? (
+          <span className="tool-detail-count">{events.length}</span>
+        ) : null}
+      </h4>
+
+      {loading ? (
+        <div className="tool-detail-empty">Loading…</div>
+      ) : !endpoint ? (
+        <>
+          <div className="tool-detail-empty">
+            No inbound webhook yet. Create one to receive events from {toolName}.
+          </div>
+          <button className="btn btn-primary" onClick={create} disabled={busy}>
+            <FiPlus /> {busy ? 'Creating…' : 'Create webhook URL'}
+          </button>
+        </>
+      ) : (
+        <>
+          <label className="tool-cred-field">
+            <span className="tool-cred-field-label">Webhook URL</span>
+            <div className="webhook-copy-row">
+              <code className="webhook-url">{endpoint.url}</code>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => copy(endpoint.url, 'URL')}
+              >
+                Copy
+              </button>
+            </div>
+            <span className="tool-cred-field-hint">
+              Register this URL with {toolName} to start receiving events.
+            </span>
+          </label>
+
+          {secret ? (
+            <label className="tool-cred-field">
+              <span className="tool-cred-field-label">
+                Signing secret (shown once)
+              </span>
+              <div className="webhook-copy-row">
+                <code className="webhook-url">{secret}</code>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => copy(secret, 'Secret')}
+                >
+                  Copy
+                </button>
+              </div>
+              <span className="tool-cred-field-hint">
+                Paste this as the webhook secret in {toolName} so deliveries are
+                verified.
+              </span>
+            </label>
+          ) : null}
+
+          <div className="tool-cred-actions">
+            <button
+              className="btn btn-secondary"
+              onClick={create}
+              disabled={busy}
+            >
+              <FiRefreshCw className={busy ? 'spin' : ''} /> Rotate secret
+            </button>
+            <button className="btn btn-danger" onClick={remove} disabled={busy}>
+              Delete
+            </button>
+          </div>
+
+          <div className="webhook-events">
+            <div className="tool-detail-key">Recent deliveries</div>
+            {events.length === 0 ? (
+              <div className="tool-detail-empty">No events received yet.</div>
+            ) : (
+              events.map((ev) => (
+                <div key={ev.id} className="endpoint-row">
+                  <div className="endpoint-row-head">
+                    <span
+                      className={`http-method http-${(
+                        ev.http_method || 'POST'
+                      ).toLowerCase()}`}
+                    >
+                      {ev.http_method}
+                    </span>
+                    <span className="endpoint-name">
+                      {formatRelative(ev.received_at)}
+                    </span>
+                    {ev.signature_valid === true ? (
+                      <span className="tool-badge tool-badge-success">
+                        signed ✓
+                      </span>
+                    ) : ev.signature_valid === false ? (
+                      <span className="tool-badge tool-badge-error">bad sig</span>
+                    ) : (
+                      <span className="tool-badge tool-badge-neutral">
+                        unsigned
+                      </span>
+                    )}
+                  </div>
+                  {ev.payload ? (
+                    <pre className="tool-detail-code">
+                      <code>{ev.payload.slice(0, 400)}</code>
+                    </pre>
+                  ) : null}
+                </div>
+              ))
+            )}
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={load}
+              disabled={loading}
+            >
+              <FiRefreshCw className={loading ? 'spin' : ''} /> Refresh events
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 function ToolDetails({ detail }) {
   if (!detail) {
     return <div className="tool-detail-empty">Loading tool details…</div>;
@@ -277,6 +476,7 @@ function ToolDetails({ detail }) {
   const endpointKeys = Object.keys(endpoints);
   const examples = Array.isArray(detail.examples) ? detail.examples : [];
   const rateLimits = detail.rate_limits;
+  const quirks = Array.isArray(detail.quirks) ? detail.quirks : [];
 
   return (
     <div className="tool-detail">
@@ -328,6 +528,20 @@ function ToolDetails({ detail }) {
           </div>
         )}
       </section>
+
+      {quirks.length > 0 && (
+        <section className="tool-detail-section">
+          <h4>
+            Provider rules{' '}
+            <span className="tool-detail-count">{quirks.length}</span>
+          </h4>
+          <ul className="tool-detail-list">
+            {quirks.map((q, i) => (
+              <li key={i}>{q}</li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="tool-detail-section">
         <h4>Rate limits</h4>
@@ -384,6 +598,8 @@ function ToolDetails({ detail }) {
           ))
         )}
       </section>
+
+      <WebhookSection toolName={detail.name} />
     </div>
   );
 }
@@ -631,9 +847,11 @@ function ToolsPage() {
   }, [tools, query]);
 
   const stats = useMemo(() => {
-    const seeds = tools.filter((t) => t.source === 'seed').length;
-    const fetched = tools.length - seeds;
-    return { total: tools.length, seeds, fetched };
+    const imported = tools.filter((t) =>
+      (t.source || '').startsWith('user-import')
+    ).length;
+    const fetched = tools.length - imported;
+    return { total: tools.length, imported, fetched };
   }, [tools]);
 
   return (
@@ -642,9 +860,9 @@ function ToolsPage() {
         <div>
           <h1>Cached Tools</h1>
           <p className="page-subtitle">
-            Every API the Dynamic Agent has docs for — seeded or auto-fetched
-            from the web. Refresh any tool to re-pull the latest endpoints,
-            auth, rate limits, and examples.
+            Every API the Dynamic Agent has docs for — auto-fetched from the
+            web or built from a doc/spec you provided. Refresh any tool to
+            re-pull the latest endpoints, auth, rate limits, and examples.
           </p>
         </div>
         <div className="tools-header-actions">
@@ -681,7 +899,7 @@ function ToolsPage() {
             <FiServer /> {stats.total} total
           </span>
           <span className="tool-stat">
-            <FiCheckCircle /> {stats.seeds} built-in
+            <FiCheckCircle /> {stats.imported} from your docs
           </span>
           <span className="tool-stat">
             <FiKey /> {stats.fetched} auto-fetched

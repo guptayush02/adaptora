@@ -25,6 +25,7 @@ import secrets
 import threading
 import time
 import urllib.parse
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import requests as http_requests
@@ -51,8 +52,11 @@ from app.db.models import (
     DynamicAgentRunLog,
     DynamicToolConnection,
     McpToolListStat,
+    OAuthState,
     ToolDefinition,
     User,
+    WebhookEndpoint,
+    WebhookEvent,
 )
 from app.core.security import decode_token, encrypt_api_key
 from app.routes.auth import get_current_user
@@ -71,6 +75,14 @@ router = APIRouter(prefix="/api/dynamic-agent", tags=["Dynamic Agent"])
 class TurnRequest(BaseModel):
     prompt: str = Field(..., min_length=1)
     language: str = Field("en", description="'en' or 'hinglish'")
+    source_url: Optional[str] = Field(
+        None,
+        description=(
+            "Optional doc / OpenAPI spec link supplied by the user. When set "
+            "(or when the prompt contains a URL), the tool is built from that "
+            "doc only, with no web search."
+        ),
+    )
 
 
 class TurnResponse(BaseModel):
@@ -165,11 +177,28 @@ async def turn(
             user_id=current_user.id,
             prompt=payload.prompt,
             language=payload.language,
+            source_url=payload.source_url,
         )
     except Exception as exc:
         logger.exception("dynamic agent turn failed")
         raise HTTPException(status_code=500, detail=f"Agent error: {exc}")
     return TurnResponse(**result)
+
+
+# ---------------------------------------------------------- turn cancellation
+# A running streamed turn executes in a worker thread; aborting the browser's
+# fetch closes the SSE but does NOT stop the thread (which may still fire a real
+# action — e.g. a payment). So each turn registers a cancel Event here; the
+# /turn/cancel endpoint sets it, and the per-step status callback raises as soon
+# as it sees the flag — halting BEFORE the next action runs.
+_ACTIVE_TURNS: Dict[str, Dict[str, Any]] = {}
+_ACTIVE_TURNS_LOCK = threading.Lock()
+
+
+class _TurnCancelled(BaseException):
+    """Raised inside the worker's status callback to abort a turn. Subclasses
+    BaseException so the pipeline's ordinary ``except Exception`` handlers don't
+    swallow it."""
 
 
 @router.post("/turn/stream")
@@ -200,13 +229,24 @@ async def turn_stream(
     events_q: "queue.Queue" = queue.Queue()
     _SENTINEL = object()
 
+    # Register a cancel flag for this turn so /turn/cancel can stop it.
+    turn_id = secrets.token_urlsafe(12)
+    cancel_event = threading.Event()
+    user_id = current_user.id
+    with _ACTIVE_TURNS_LOCK:
+        _ACTIVE_TURNS[turn_id] = {"event": cancel_event, "user_id": user_id}
+
     def emit_status(step: str, data: Dict[str, Any]) -> None:
+        # Checked at every pipeline step — raises BEFORE the next action runs
+        # the moment the user hits Stop.
+        if cancel_event.is_set():
+            raise _TurnCancelled()
         events_q.put({"step": step, **(data or {})})
 
-    result_box: Dict[str, Any] = {"response": None, "error": None}
-    user_id = current_user.id
+    result_box: Dict[str, Any] = {"response": None, "error": None, "cancelled": False}
     prompt = payload.prompt
     language = payload.language
+    source_url = payload.source_url
 
     def run_pipeline() -> None:
         worker_db = SessionLocal()
@@ -216,14 +256,20 @@ async def turn_stream(
                 user_id=user_id,
                 prompt=prompt,
                 language=language,
+                source_url=source_url,
                 status_callback=emit_status,
             )
             result_box["response"] = result
+        except _TurnCancelled:
+            result_box["cancelled"] = True
+            logger.info("dynamic agent turn %s cancelled by user", turn_id)
         except Exception as exc:
             logger.exception("dynamic agent stream pipeline failed")
             result_box["error"] = str(exc)
         finally:
             worker_db.close()
+            with _ACTIVE_TURNS_LOCK:
+                _ACTIVE_TURNS.pop(turn_id, None)
             events_q.put(_SENTINEL)
 
     threading.Thread(target=run_pipeline, daemon=True).start()
@@ -234,6 +280,11 @@ async def turn_stream(
         # Prime the connection so proxies see bytes immediately and don't
         # buffer until the first chunk arrives.
         yield ": stream-open\n\n"
+        # Hand the client its turn_id up front so it can POST /turn/cancel.
+        yield (
+            f"event: status\n"
+            f"data: {json.dumps({'step': 'turn_started', 'turn_id': turn_id})}\n\n"
+        )
         while True:
             try:
                 evt = events_q.get(timeout=HEARTBEAT_SECONDS)
@@ -244,7 +295,12 @@ async def turn_stream(
                 yield f": keepalive {int(time.time())}\n\n"
                 continue
             if evt is _SENTINEL:
-                if result_box["error"]:
+                if result_box.get("cancelled"):
+                    yield (
+                        f"event: cancelled\n"
+                        f"data: {json.dumps({'cancelled': True})}\n\n"
+                    )
+                elif result_box["error"]:
                     yield f"event: error\ndata: {json.dumps({'error': result_box['error']})}\n\n"
                 else:
                     yield (
@@ -265,6 +321,65 @@ async def turn_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.post("/turn/cancel/{turn_id}")
+async def cancel_turn(
+    turn_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Stop an in-flight streamed turn. Sets the turn's cancel flag; the worker
+    halts at its next pipeline step (before the next action runs)."""
+    with _ACTIVE_TURNS_LOCK:
+        entry = _ACTIVE_TURNS.get(turn_id)
+    if not entry or entry.get("user_id") != current_user.id:
+        # Already finished, unknown, or not the caller's turn.
+        return {"cancelled": False, "detail": "no active turn with that id"}
+    entry["event"].set()
+    return {"cancelled": True}
+
+
+@router.post("/turn/upload", response_model=TurnResponse)
+async def turn_with_upload(
+    prompt: str = Form(...),
+    language: str = Form("en"),
+    file: Optional[UploadFile] = FastAPIFile(None),
+    source_url: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Multipart variant of ``/turn`` for the chat composer when the user
+    attaches a doc/spec FILE (or pastes a link). The identified tool's docs
+    are built from the uploaded file / supplied link only — no web search.
+
+    Non-streaming: file uploads can't ride the JSON SSE channel, so the UI
+    shows a spinner and waits for the full result here."""
+    if not (prompt or "").strip():
+        raise HTTPException(status_code=400, detail="`prompt` is required")
+
+    file_bytes: Optional[bytes] = None
+    filename: Optional[str] = None
+    file_ct: Optional[str] = None
+    if file is not None:
+        file_bytes = await file.read()
+        filename = file.filename
+        file_ct = file.content_type
+
+    try:
+        result = dynamic_agent_service.run_turn(
+            db,
+            user_id=current_user.id,
+            prompt=prompt,
+            language=language if language in ("en", "hinglish") else "en",
+            source_url=(source_url or "").strip() or None,
+            file_bytes=file_bytes,
+            filename=filename,
+            content_type=file_ct,
+        )
+    except Exception as exc:
+        logger.exception("dynamic agent upload turn failed")
+        raise HTTPException(status_code=500, detail=f"Agent error: {exc}")
+    return TurnResponse(**result)
 
 
 @router.post("/credentials", response_model=CredentialsResponse)
@@ -492,6 +607,7 @@ async def get_tool(
         "endpoints": tool.endpoints or {},
         "rate_limits": tool.rate_limits,
         "examples": tool.examples,
+        "quirks": tool.quirks,
         "docs_url": tool.docs_url,
         "source": tool.source,
         "last_fetched_at": tool.last_fetched_at.isoformat() if tool.last_fetched_at else None,
@@ -849,9 +965,8 @@ async def logs_stream(current_user: User = Depends(get_current_user)):
 
 
 # ---------------------------------------------------------------- OAuth2 flow
-# In-memory state store: state_token → {user_id, tool_name}
-# Short-lived (10 min TTL enforced by the callback).
-_OAUTH_STATES: Dict[str, Dict[str, Any]] = {}
+# State is persisted in the DB (OAuthState table) so the flow survives process
+# restarts and works across multiple workers — an in-memory dict broke both.
 _OAUTH_STATE_TTL = 600  # seconds
 
 # Override the callback base URL via env var (useful when running behind a
@@ -943,12 +1058,6 @@ async def oauth_authorize(
         )
 
     state = secrets.token_urlsafe(32)
-    _OAUTH_STATES[state] = {
-        "user_id": current_user.id,
-        "tool_name": tool.name,
-        "created_at": time.time(),
-    }
-
     callback_uri = _callback_uri(request)
 
     scopes = creds.get("scopes") or cfg.get("default_scopes") or ""
@@ -959,6 +1068,42 @@ async def oauth_authorize(
         "state": state,
         "scope": scopes,
     }
+
+    # PKCE: for OAUTH2_PKCE tools generate a code_verifier, send its S256
+    # challenge now, and stash the verifier with the state so the callback can
+    # prove possession at the token endpoint.
+    code_verifier: Optional[str] = None
+    if (tool.auth_type or "").upper() == "OAUTH2_PKCE":
+        code_verifier = secrets.token_urlsafe(64)[:96]  # 43–128 chars per RFC 7636
+        challenge = (
+            base64.urlsafe_b64encode(
+                hashlib.sha256(code_verifier.encode()).digest()
+            )
+            .rstrip(b"=")
+            .decode()
+        )
+        params["code_challenge"] = challenge
+        params["code_challenge_method"] = "S256"
+
+    # Best-effort GC of expired states so the table can't grow unbounded.
+    try:
+        db.query(OAuthState).filter(
+            OAuthState.created_at
+            < datetime.utcnow() - timedelta(seconds=_OAUTH_STATE_TTL)
+        ).delete()
+    except Exception:
+        pass
+    db.add(
+        OAuthState(
+            state=state,
+            user_id=current_user.id,
+            tool_name=tool.name,
+            code_verifier=code_verifier,
+            created_at=datetime.utcnow(),
+        )
+    )
+    db.commit()
+
     full_url = authorize_url + "?" + urllib.parse.urlencode(params)
     return RedirectResponse(url=full_url)
 
@@ -975,15 +1120,25 @@ async def oauth_callback(
     if error:
         return RedirectResponse(url=f"/?oauth_error={urllib.parse.quote(error)}")
 
-    if not state or state not in _OAUTH_STATES:
+    st = (
+        db.query(OAuthState).filter(OAuthState.state == state).first()
+        if state
+        else None
+    )
+    if not st:
         raise HTTPException(status_code=400, detail="Invalid or expired OAuth state.")
 
-    state_data = _OAUTH_STATES.pop(state)
-    if time.time() - state_data["created_at"] > _OAUTH_STATE_TTL:
-        raise HTTPException(status_code=400, detail="OAuth state expired. Try again.")
+    # Consume the one-time state immediately (single-use, even if a later step
+    # fails).
+    user_id = st.user_id
+    tool_name = st.tool_name
+    code_verifier = st.code_verifier
+    created_at = st.created_at
+    db.delete(st)
+    db.commit()
 
-    user_id = state_data["user_id"]
-    tool_name = state_data["tool_name"]
+    if (datetime.utcnow() - created_at).total_seconds() > _OAUTH_STATE_TTL:
+        raise HTTPException(status_code=400, detail="OAuth state expired. Try again.")
 
     tool = db.query(ToolDefinition).filter(ToolDefinition.name == tool_name).first()
     if not tool:
@@ -1015,16 +1170,20 @@ async def oauth_callback(
 
     callback_uri = _callback_uri(request)
 
+    token_payload = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": callback_uri,
+        "client_id": client_id,
+        "client_secret": client_secret,
+    }
+    # PKCE tools must echo the verifier instead of (or alongside) the secret.
+    if code_verifier:
+        token_payload["code_verifier"] = code_verifier
     try:
         resp = http_requests.post(
             token_url,
-            data={
-                "grant_type": "authorization_code",
-                "code": code,
-                "redirect_uri": callback_uri,
-                "client_id": client_id,
-                "client_secret": client_secret,
-            },
+            data=token_payload,
             headers={"Accept": "application/json"},
             timeout=15,
         )
@@ -1133,3 +1292,256 @@ async def token_savings(
         "input_reduction_pct": round((1 - in_sent / in_raw) * 100, 1) if in_raw else 0.0,
         "tool_count": tool_count,
     }
+
+
+# ---------------------------------------------------------------- Webhooks
+# Adaptora can receive provider → Adaptora event callbacks. The user creates an
+# inbound endpoint here, registers its URL with the provider (via a normal
+# documented API call the agent can make), and the provider POSTs events to
+# /webhooks/in/{tool}/{token}. Deliveries are stored as WebhookEvent rows.
+
+# Recognized signature header names across common providers. Only the NAME is
+# provider-knowledge (a public convention) — the verification itself is generic
+# HMAC, no per-tool business logic.
+_WEBHOOK_SIG_HEADERS = (
+    "x-hub-signature-256",
+    "x-hub-signature",
+    "x-signature-256",
+    "x-signature",
+    "x-webhook-signature",
+    "x-slack-signature",
+    "x-razorpay-signature",
+    "stripe-signature",
+    "x-shopify-hmac-sha256",
+)
+
+
+def _webhook_url(request: Request, tool_name: str, token: str) -> str:
+    base = _OAUTH_REDIRECT_BASE_URL or str(request.base_url).rstrip("/")
+    return f"{base}/api/dynamic-agent/webhooks/in/{tool_name}/{token}"
+
+
+def _verify_webhook_signature(
+    secret: str, headers: Dict[str, str], raw_body: bytes
+) -> Optional[bool]:
+    """Best-effort generic HMAC verification.
+
+    Returns True/False when a recognized signature header is present, else None
+    (nothing to check). Tries HMAC-SHA256 (hex + base64) and HMAC-SHA1 (hex) of
+    the raw body keyed by ``secret`` and compares — in constant time — against
+    the header value, tolerating ``sha256=…`` / ``t=…,v1=…`` style prefixes."""
+    import hmac
+
+    lowered = {k.lower(): v for k, v in headers.items()}
+    present: Optional[str] = None
+    for h in _WEBHOOK_SIG_HEADERS:
+        if h in lowered:
+            present = lowered[h]
+            break
+    if not present:
+        return None
+
+    key = secret.encode()
+    candidates = {
+        hmac.new(key, raw_body, hashlib.sha256).hexdigest(),
+        base64.b64encode(hmac.new(key, raw_body, hashlib.sha256).digest()).decode(),
+        hmac.new(key, raw_body, hashlib.sha1).hexdigest(),
+    }
+    provided = {present.strip()}
+    if "=" in present:
+        provided.add(present.split("=")[-1].strip())
+    if "," in present:  # e.g. Stripe's "t=...,v1=..."
+        for part in present.split(","):
+            if "=" in part:
+                provided.add(part.split("=", 1)[1].strip())
+    for pv in provided:
+        for c in candidates:
+            if hmac.compare_digest(pv, c):
+                return True
+    return False
+
+
+class WebhookCreateRequest(BaseModel):
+    tool: str = Field(..., min_length=1)
+
+
+class WebhookEndpointItem(BaseModel):
+    id: int
+    tool: str
+    url: str
+    has_secret: bool
+    # The shared secret is returned ONLY at create/rotate time so the user can
+    # paste it into the provider; list responses omit it.
+    secret: Optional[str] = None
+    created_at: str
+
+
+class WebhookEventItem(BaseModel):
+    id: int
+    tool: str
+    http_method: str
+    signature_valid: Optional[bool] = None
+    payload: Optional[str] = None
+    received_at: str
+
+
+@router.post("/webhooks", response_model=WebhookEndpointItem)
+async def create_webhook_endpoint(
+    payload: WebhookCreateRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create (or rotate the secret of) the user's inbound webhook for a tool.
+
+    The URL (token) stays stable across rotations so a provider registration
+    keeps working; only the signing secret changes."""
+    tool_name = payload.tool.strip().lower()
+    secret = secrets.token_urlsafe(24)
+    ep = (
+        db.query(WebhookEndpoint)
+        .filter(
+            WebhookEndpoint.user_id == current_user.id,
+            WebhookEndpoint.tool_name == tool_name,
+            WebhookEndpoint.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+    if ep:
+        ep.secret = secret  # rotate
+    else:
+        ep = WebhookEndpoint(
+            user_id=current_user.id,
+            tool_name=tool_name,
+            token=secrets.token_urlsafe(24),
+            secret=secret,
+        )
+        db.add(ep)
+    db.commit()
+    db.refresh(ep)
+    return WebhookEndpointItem(
+        id=ep.id,
+        tool=ep.tool_name,
+        url=_webhook_url(request, ep.tool_name, ep.token),
+        has_secret=bool(ep.secret),
+        secret=secret,
+        created_at=ep.created_at.isoformat(),
+    )
+
+
+@router.get("/webhooks", response_model=List[WebhookEndpointItem])
+async def list_webhook_endpoints(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    rows = (
+        db.query(WebhookEndpoint)
+        .filter(
+            WebhookEndpoint.user_id == current_user.id,
+            WebhookEndpoint.is_active == True,  # noqa: E712
+        )
+        .order_by(WebhookEndpoint.created_at.desc())
+        .all()
+    )
+    return [
+        WebhookEndpointItem(
+            id=r.id,
+            tool=r.tool_name,
+            url=_webhook_url(request, r.tool_name, r.token),
+            has_secret=bool(r.secret),
+            secret=None,
+            created_at=r.created_at.isoformat(),
+        )
+        for r in rows
+    ]
+
+
+@router.get("/webhooks/events", response_model=List[WebhookEventItem])
+async def list_webhook_events(
+    tool: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    q = db.query(WebhookEvent).filter(WebhookEvent.user_id == current_user.id)
+    if tool:
+        q = q.filter(WebhookEvent.tool_name == tool.strip().lower())
+    rows = q.order_by(WebhookEvent.received_at.desc()).limit(limit).all()
+    return [
+        WebhookEventItem(
+            id=r.id,
+            tool=r.tool_name,
+            http_method=r.http_method,
+            signature_valid=r.signature_valid,
+            payload=r.payload,
+            received_at=r.received_at.isoformat(),
+        )
+        for r in rows
+    ]
+
+
+@router.delete("/webhooks/{endpoint_id}")
+async def delete_webhook_endpoint(
+    endpoint_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    ep = (
+        db.query(WebhookEndpoint)
+        .filter(
+            WebhookEndpoint.id == endpoint_id,
+            WebhookEndpoint.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not ep:
+        raise HTTPException(status_code=404, detail="Webhook endpoint not found.")
+    ep.is_active = False
+    db.commit()
+    return {"deleted": True, "id": endpoint_id}
+
+
+@router.api_route(
+    "/webhooks/in/{tool_name}/{token}",
+    methods=["POST", "PUT", "PATCH", "GET", "DELETE"],
+)
+async def receive_webhook(
+    tool_name: str,
+    token: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Public inbound receiver — the provider POSTs events here. Identified by
+    the unguessable ``token`` (no user auth); stores the delivery and, when a
+    secret is configured, records whether the HMAC signature checked out."""
+    ep = (
+        db.query(WebhookEndpoint)
+        .filter(
+            WebhookEndpoint.token == token,
+            WebhookEndpoint.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+    if not ep or ep.tool_name != tool_name.strip().lower():
+        raise HTTPException(status_code=404, detail="Unknown webhook endpoint.")
+
+    raw = await request.body()
+    sig_valid = (
+        _verify_webhook_signature(ep.secret, dict(request.headers), raw)
+        if ep.secret
+        else None
+    )
+    evt = WebhookEvent(
+        user_id=ep.user_id,
+        tool_name=ep.tool_name,
+        endpoint_id=ep.id,
+        http_method=request.method,
+        headers={k: v for k, v in request.headers.items()},
+        payload=raw.decode("utf-8", "ignore")[:20000],
+        signature_valid=sig_valid,
+    )
+    db.add(evt)
+    db.commit()
+    db.refresh(evt)
+    return {"received": True, "event_id": evt.id, "signature_valid": sig_valid}

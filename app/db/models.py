@@ -169,10 +169,15 @@ class ToolDefinition(Base):
     # Code samples extracted from docs:
     # [{"language": "curl", "code": "..."}, {"language": "python", ...}]
     examples = Column(JSON, nullable=True)
+    # Provider-specific rules the planner MUST follow, extracted from the docs
+    # (NOT hardcoded). Freeform list of short strings, e.g.
+    # ["amount is in the smallest currency unit (paise) — multiply rupees by 100",
+    #  "timestamps are unix seconds"]. Used to keep the agent's calls correct.
+    quirks = Column(JSON, nullable=True)
     docs_url = Column(String, nullable=True)
-    # "seed" | "scraped" | "llm" — tracks how we got these docs so we know
-    # how much to trust them and when to refresh.
-    source = Column(String, default="llm")
+    # "web" | "user-import" | "user-import+openapi" — tracks how we got these
+    # docs so we know how much to trust them and when to refresh.
+    source = Column(String, default="web")
     last_fetched_at = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -266,3 +271,65 @@ class McpToolListStat(Base):
     input_saved = Column(Integer, default=0)
     tool_count = Column(Integer, default=0)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class OAuthState(Base):
+    """Short-lived OAuth2 authorization-code state, persisted in the DB.
+
+    The old in-memory dict broke two ways: it was wiped on every process
+    restart, and under a multi-worker deploy (gunicorn -w N) the browser
+    callback could land on a different worker that never saw the state. A row
+    here is created when the authorize redirect is issued, looked up + consumed
+    (deleted) once by the callback, and expires after a short TTL.
+
+    ``code_verifier`` carries the PKCE secret for OAUTH2_PKCE tools — the
+    callback must echo it back to the provider's token endpoint."""
+
+    __tablename__ = "oauth_states"
+
+    state = Column(String, primary_key=True)
+    user_id = Column(Integer, index=True)
+    tool_name = Column(String, index=True)
+    code_verifier = Column(String, nullable=True)  # PKCE (None for plain OAUTH2)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class WebhookEndpoint(Base):
+    """A per-user inbound webhook URL for one connected tool.
+
+    Adaptora exposes ``/api/dynamic-agent/webhooks/in/{tool}/{token}``; the
+    user registers that URL with the provider (via a normal documented API
+    call) and the provider POSTs events to it. ``token`` is the opaque,
+    unguessable path segment that maps an inbound request back to the owner;
+    ``secret`` (optional) is the shared secret used to verify the provider's
+    HMAC signature on each delivery."""
+
+    __tablename__ = "webhook_endpoints"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, index=True)
+    tool_name = Column(String, index=True)
+    token = Column(String, unique=True, index=True)
+    secret = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class WebhookEvent(Base):
+    """One received inbound webhook delivery, stored for inspection / replay.
+
+    ``signature_valid`` is True/False when ``WebhookEndpoint.secret`` was set
+    and we could check a known signature header, or NULL when no secret was
+    configured or no recognizable signature header was present."""
+
+    __tablename__ = "webhook_events"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, index=True)
+    tool_name = Column(String, index=True)
+    endpoint_id = Column(Integer, index=True, nullable=True)
+    http_method = Column(String, default="POST")
+    headers = Column(JSON, nullable=True)
+    payload = Column(Text, nullable=True)
+    signature_valid = Column(Boolean, nullable=True)
+    received_at = Column(DateTime, default=datetime.utcnow, index=True)

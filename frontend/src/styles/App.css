@@ -1970,6 +1970,47 @@ input[type='range']::-moz-range-thumb {
 .chat-send-btn svg {
   font-size: 18px;
 }
+.chat-attach-btn {
+  height: 44px;
+  width: 44px;
+  padding: 0;
+  border-radius: var(--radius-md);
+  justify-content: center;
+  flex-shrink: 0;
+}
+.chat-attach-btn svg {
+  font-size: 18px;
+}
+.chat-attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle, rgba(127, 127, 127, 0.12));
+  font-size: 13px;
+}
+.chat-attachment-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 280px;
+}
+.chat-attachment-remove {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  padding: 2px;
+  opacity: 0.7;
+}
+.chat-attachment-remove:hover {
+  opacity: 1;
+}
 
 @media (max-width: 900px) {
   .chat-layout {
@@ -2438,6 +2479,32 @@ input[type='range']::-moz-range-thumb {
 .tool-badge-info {
   background: var(--color-primary-soft);
   color: var(--color-primary);
+}
+.tool-badge-error {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
+
+/* --- Webhooks (tool detail modal) --- */
+.webhook-copy-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.webhook-url {
+  flex: 1;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  font-size: 0.82rem;
+}
+.webhook-events {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .tool-card-meta {

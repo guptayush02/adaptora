@@ -81,3 +81,8 @@ dist/
 *.local
 
 .env.docker
+
+# Local SQLite runtime files
+token_optimizer.db
+token_optimizer.db-shm
+token_optimizer.db-wal

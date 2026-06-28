@@ -173,6 +173,10 @@ def _ensure_sqlite_schema():
             additions.append(
                 "ALTER TABLE tool_definitions ADD COLUMN examples JSON"
             )
+        if "quirks" not in existing:
+            additions.append(
+                "ALTER TABLE tool_definitions ADD COLUMN quirks JSON"
+            )
         for stmt in additions:
             with engine.begin() as connection:
                 connection.execute(text(stmt))
@@ -192,6 +196,7 @@ def _ensure_postgres_schema():
         "ALTER TABLE dynamic_agent_runs ADD COLUMN IF NOT EXISTS tokens_saved INTEGER DEFAULT 0",
         "ALTER TABLE dynamic_agent_runs ADD COLUMN IF NOT EXISTS api_key_id INTEGER",
         "ALTER TABLE developer_api_keys ADD COLUMN IF NOT EXISTS key_encrypted VARCHAR",
+        "ALTER TABLE tool_definitions ADD COLUMN IF NOT EXISTS quirks JSON",
     ]
     with engine.begin() as connection:
         for stmt in additions:

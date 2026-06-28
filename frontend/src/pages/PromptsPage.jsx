@@ -15,6 +15,7 @@ import {
   FiMenu,
   FiEdit3,
   FiExternalLink,
+  FiSquare,
 } from 'react-icons/fi';
 import {
   queryService,
@@ -617,6 +618,9 @@ function PromptsPage() {
 
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  // Stop support: AbortController cancels the in-flight streaming request.
+  const abortRef = useRef(null);
+  const stoppedRef = useRef(false);
 
   useEffect(() => {
     loadConversations();
@@ -728,6 +732,11 @@ function PromptsPage() {
 
   const sendMessage = async (e) => {
     e?.preventDefault();
+    // While a response is streaming, the button acts as Stop.
+    if (sending) {
+      handleStopPrompt();
+      return;
+    }
     const trimmed = prompt.trim();
     if (!trimmed) {
       toast.error('Please enter a prompt');
@@ -801,6 +810,9 @@ function PromptsPage() {
     setPrompt('');
     setSending(true);
     setStatusStep({ step: 'starting' });
+    stoppedRef.current = false;
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     // Track the most recent conversation_id we've seen — either the one the
     // user already had open or the one announced via `conversation_started`.
@@ -864,6 +876,7 @@ function PromptsPage() {
         // the "original vs optimized" bars reflect real user input rather
         // than two readings of the same already-optimized text.
         preOriginalPrompt: originalPrompt,
+        signal: controller.signal,
         onStatus: (evt) => {
           if (evt?.conversation_id) pendingConvoId = evt.conversation_id;
           // The backend emits the structured source list right after web
@@ -878,6 +891,11 @@ function PromptsPage() {
 
       appendFromResponse(result);
     } catch (err) {
+      // User pressed Stop — drop the optimistic bubble, no error toast.
+      if (err?.name === 'AbortError' || stoppedRef.current) {
+        setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
+        return;
+      }
       console.error('Send error:', err);
 
       // Stream died before `done` — backend almost certainly finished and
@@ -906,7 +924,16 @@ function PromptsPage() {
     } finally {
       setSending(false);
       setStatusStep(null);
+      abortRef.current = null;
     }
+  };
+
+  // Stop the in-flight prompt: abort the streaming request. The browser drops
+  // the connection; the backend stops streaming to a dead client.
+  const handleStopPrompt = () => {
+    if (!sending) return;
+    stoppedRef.current = true;
+    abortRef.current?.abort();
   };
 
   /**
@@ -1478,10 +1505,13 @@ function PromptsPage() {
             />
             <button
               type="submit"
-              className="btn btn-primary btn-icon chat-send-btn"
-              disabled={sending || !prompt.trim()}
+              className={`btn btn-icon chat-send-btn ${sending ? 'btn-danger' : 'btn-primary'}`}
+              // Clickable while sending so it acts as Stop.
+              disabled={sending ? false : !prompt.trim()}
+              aria-label={sending ? 'Stop' : 'Send'}
+              title={sending ? 'Stop' : 'Send'}
             >
-              <FiSend />
+              {sending ? <FiSquare /> : <FiSend />}
             </button>
           </div>
         </form>

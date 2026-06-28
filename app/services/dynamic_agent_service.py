@@ -50,23 +50,20 @@ from app.services.llm_provider import LLMProvider
 
 # ---------------------------------------------------------------- LLM prompts
 
-_TOOL_IDENTIFY_SYSTEM = __import__("base64").b64decode("WW91IGFyZSB0aGUgdG9vbC1yb3V0ZXIgZm9yIGEgZHluYW1pYyBBUEkgYWdlbnQuCgpUaGUgdXNlciBqdXN0IHNhaWQgc29tZXRoaW5nLiBEZWNpZGUgd2hpY2ggRVhURVJOQUwgQVBJL1RPT0wgdGhleSB3YW50IHRvCnVzZS4gVGhlcmUgaXMgTk8gY2F0YWxvZyDigJQgeW91IG11c3QgcmVhc29uIGZyb20gdGhlIHByb21wdCdzIGludGVudC4KCkNvbW1vbiB0b29scyB5b3UnbGwgc2VlOiBnaXRodWIsIG5vdGlvbiwgZ21haWwsIHNsYWNrLCBnb29nbGUtY2FsZW5kYXIsCmdvb2dsZS1kcml2ZSwgZ29vZ2xlLXNoZWV0cywgbGluZWFyLCBhc2FuYSwgamlyYSwgdHJlbGxvLCBzdHJpcGUsCnJhem9ycGF5LCBwYXlwYWwsIG9wZW5haSwgYW50aHJvcGljLCBodWJzcG90LCBzYWxlc2ZvcmNlLCBzaG9waWZ5LAptYWlsY2hpbXAsIHNlbmRncmlkLCB0d2lsaW8sIGRpc2NvcmQsIHRlbGVncmFtLCB6b29tLCBmaWdtYSwgYWlydGFibGUsCmF3cywgZ2NwLCBhenVyZS4KQnV0IEFOWSBwdWJsaWMgUkVTVCB0b29sIGlzIHZhbGlkIOKAlCBwaWNrIHRoZSBjYW5vbmljYWwgbG93ZXJjYXNlIG5hbWUKdGhlIHdvcmxkIHVzZXMgKGUuZy4gImdpdGh1YiIgbm90ICJHaXRIdWIgSW5jLiIsICJnb29nbGUtY2FsZW5kYXIiIG5vdAoiZ2NhbCIpLgoKUnVsZXM6Ci0gSWYgdGhlIHVzZXIgbmFtZWQgYSB0b29sIGRpcmVjdGx5ICgiY29ubmVjdCBnaXRodWIiKSDihpIgdGhhdCdzIHRoZSB0b29sLgotIElmIHRoZXkgZGVzY3JpYmVkIGFuIGFjdGlvbiAoInNlbmQgYW4gZW1haWwiKSDihpIgcGljayB0aGUgbW9zdCBjb21tb24gdG9vbAogIGZvciB0aGF0IGFjdGlvbiAoZ21haWwgZm9yICJzZW5kIGVtYWlsIiwgc2xhY2sgZm9yICJwb3N0IGEgbWVzc2FnZSIgd2l0aAogIG5vIG90aGVyIGNvbnRleHQsIGV0Yy4pLgotICJ0b29sIiBpcyB0aGUgY2Fub25pY2FsIGxvd2VyY2FzZSBpZGVudGlmaWVyLCBoeXBoZW4tc2VwYXJhdGVkIGZvcgogIG11bHRpLXdvcmQgbmFtZXMuCi0gSU1QT1JUQU5UIOKAlCBjbG91ZCBwcm92aWRlcnMgc3RheSBhcyBPTkUgdG9vbDogZm9yIEFOWVRISU5HIG9uIEFtYXpvbgogIFdlYiBTZXJ2aWNlcyAoRUMyLCBTMywgUkRTLCBMYW1iZGEsIElBTSwg4oCmKSB0aGUgdG9vbCBpcyBleGFjdGx5ICJhd3MiLgogIE5ldmVyIHNwbGl0IGludG8gImF3cy1lYzIiLCAiYXdzLXMzIiwgImFtYXpvbi13ZWItc2VydmljZXMiLCAiYXdzLWNsaSIsCiAgZXRjLiBTYW1lIHJ1bGUgZm9yICJnY3AiIGFuZCAiYXp1cmUiLgotICJpbnRlbnQiIGlzIHdoYXQgdGhlIHVzZXIgd2FudHMgdG8gRE86ICJjb25uZWN0IiAoc3RhcnQgYXV0aCkgLwogICJhY3Rpb24iIChleGVjdXRlIHNvbWV0aGluZyB0aGV5IGFscmVhZHkgYXV0aGVkKSAvICJhbWJpZ3VvdXMiLgotIElmIHlvdSBnZW51aW5lbHkgY2FuJ3QgcGljayBhIHRvb2wgKGUuZy4gImhlbGxvIiksIHJldHVybiB0b29sPW51bGwuCgpSZXNwb25kIHdpdGggU1RSSUNUIEpTT04gb25seSwgbm8gcHJvc2UsIG5vIG1hcmtkb3duIGZlbmNlczoKCnsKICAidG9vbCI6ICI8bG93ZXJjYXNlIGNhbm9uaWNhbCBuYW1lPiIgfCBudWxsLAogICJpbnRlbnQiOiAiY29ubmVjdCIgfCAiYWN0aW9uIiB8ICJhbWJpZ3VvdXMiLAogICJjb25maWRlbmNlIjogPDAuLjE+LAogICJyZWFzb24iOiAiPG9uZSBzZW50ZW5jZT4iCn0K").decode()
+_TOOL_IDENTIFY_SYSTEM = __import__("base64").b64decode("WW91IGFyZSB0aGUgdG9vbC1yb3V0ZXIgZm9yIGEgZHluYW1pYyBBUEkgYWdlbnQuCgpUaGUgdXNlciBqdXN0IHNhaWQgc29tZXRoaW5nLiBEZWNpZGUgd2hpY2ggRVhURVJOQUwgQVBJL1RPT0wgdGhleSB3YW50IHRvCnVzZS4gVGhlcmUgaXMgTk8gY2F0YWxvZyDigJQgeW91IG11c3QgcmVhc29uIGZyb20gdGhlIHByb21wdCdzIGludGVudC4KCkNvbW1vbiB0b29scyB5b3UnbGwgc2VlOiBnaXRodWIsIG5vdGlvbiwgZ21haWwsIHNsYWNrLCBnb29nbGUtY2FsZW5kYXIsCmdvb2dsZS1kcml2ZSwgZ29vZ2xlLXNoZWV0cywgbGluZWFyLCBhc2FuYSwgamlyYSwgdHJlbGxvLCBzdHJpcGUsCnJhem9ycGF5LCBwYXlwYWwsIG9wZW5haSwgYW50aHJvcGljLCBodWJzcG90LCBzYWxlc2ZvcmNlLCBzaG9waWZ5LAptYWlsY2hpbXAsIHNlbmRncmlkLCB0d2lsaW8sIGRpc2NvcmQsIHRlbGVncmFtLCB6b29tLCBmaWdtYSwgYWlydGFibGUsCmF3cywgZ2NwLCBhenVyZS4KQnV0IEFOWSBwdWJsaWMgUkVTVCB0b29sIGlzIHZhbGlkIOKAlCBwaWNrIHRoZSBjYW5vbmljYWwgbG93ZXJjYXNlIG5hbWUKdGhlIHdvcmxkIHVzZXMgKGUuZy4gImdpdGh1YiIgbm90ICJHaXRIdWIgSW5jLiIsICJnb29nbGUtY2FsZW5kYXIiIG5vdAoiZ2NhbCIpLgoKUnVsZXM6Ci0gSWYgdGhlIHVzZXIgbmFtZWQgYSB0b29sIGRpcmVjdGx5ICgiY29ubmVjdCBnaXRodWIiKSDihpIgdGhhdCdzIHRoZSB0b29sLgotIElmIHRoZXkgZGVzY3JpYmVkIGFuIGFjdGlvbiAoInNlbmQgYW4gZW1haWwiKSDihpIgcGljayB0aGUgbW9zdCBjb21tb24gdG9vbAogIGZvciB0aGF0IGFjdGlvbiAoZ21haWwgZm9yICJzZW5kIGVtYWlsIiwgc2xhY2sgZm9yICJwb3N0IGEgbWVzc2FnZSIgd2l0aAogIG5vIG90aGVyIGNvbnRleHQsIGV0Yy4pLgotICJ0b29sIiBpcyB0aGUgY2Fub25pY2FsIGxvd2VyY2FzZSBpZGVudGlmaWVyLCBoeXBoZW4tc2VwYXJhdGVkIGZvcgogIG11bHRpLXdvcmQgbmFtZXMuCi0gSU1QT1JUQU5UIOKAlCBjbG91ZCBwcm92aWRlcnMgc3RheSBhcyBPTkUgdG9vbDogZm9yIEFOWVRISU5HIG9uIEFtYXpvbgogIFdlYiBTZXJ2aWNlcyAoRUMyLCBTMywgUkRTLCBMYW1iZGEsIElBTSwg4oCmKSB0aGUgdG9vbCBpcyBleGFjdGx5ICJhd3MiLgogIE5ldmVyIHNwbGl0IGludG8gImF3cy1lYzIiLCAiYXdzLXMzIiwgImFtYXpvbi13ZWItc2VydmljZXMiLCAiYXdzLWNsaSIsCiAgZXRjLiBTYW1lIHJ1bGUgZm9yICJnY3AiIGFuZCAiYXp1cmUiLgotICJpbnRlbnQiIGlzIHdoYXQgdGhlIHVzZXIgd2FudHMgdG8gRE86ICJjb25uZWN0IiAoc3RhcnQgYXV0aCkgLwogICJhY3Rpb24iIChleGVjdXRlIHNvbWV0aGluZyB0aGV5IGFscmVhZHkgYXV0aGVkKSAvICJhbWJpZ3VvdXMiLgotIElmIHlvdSBnZW51aW5lbHkgY2FuJ3QgcGljayBhIHRvb2wgKGUuZy4gImhlbGxvIiksIHJldHVybiB0b29sPW51bGwuCgotICJ3YW50c19kb2NfaW1wb3J0IjogdHJ1ZSBPTkxZIHdoZW4gdGhlIHVzZXIgaXMgYXNraW5nIHRvIFNFVCBVUCAvIE9OQk9BUkQgLwogIFRFQUNIIC8gQUREIGEgdG9vbCBieSBnaXZpbmcgeW91IGl0cyBET0NVTUVOVEFUSU9OIG9yIEFQSSBTUEVDICh1c3VhbGx5IGEKICBsaW5rIG9yIGEgcGhyYXNlIGxpa2UgInNldCB1cCBYIGZyb20gdGhlc2UgZG9jcyIsICJ1c2UgdGhpcyBhcGkgc3BlYyIsCiAgImhlcmUgYXJlIHRoZSBkb2NzIGZvciBYIiwgImltcG9ydCBYIGZyb20gPGxpbms+IikuIEl0IG1lYW5zOiAicmVhZCB0aGlzCiAgZG9jIGFuZCBsZWFybiB0aGUgdG9vbCBmcm9tIGl0LiIKICBTZXQgaXQgRkFMU0UgZm9yIG9yZGluYXJ5IGFjdGlvbiByZXF1ZXN0cywgRVZFTiBJRiB0aGUgcHJvbXB0IGNvbnRhaW5zIGEKICBVUkwg4oCUIGEgbGluayB0aGF0IGlzIGp1c3QgQ09OVEVOVCBvZiB0aGUgdGFzayBpcyBub3QgYSBkb2MuCiAgRXhhbXBsZXM6CiAgICDigKIgInNldCB1cCBhY21lIGZyb20gaHR0cHM6Ly9hY21lLmRldi9vcGVuYXBpLmpzb24iICAgICAg4oaSIHRydWUKICAgIOKAoiAiaGVyZSBhcmUgdGhlIGxpbmtlZGluIGFwaSBkb2NzOiA8bGluaz4sIGFkZCBsaW5rZWRpbiIg4oaSIHRydWUKICAgIOKAoiAicG9zdCBvbiBsaW5rZWRpbiBzaGFyaW5nIGh0dHBzOi8vbXlzaXRlLmNvbS9ibG9nIiAgICAg4oaSIGZhbHNlICh0aGUgVVJMCiAgICAgIGlzIGNvbnRlbnQgdG8gcG9zdCwgbm90IGEgZG9jIHRvIGxlYXJuIGZyb20pCiAgICDigKIgImNyZWF0ZSBhIGdpdGh1YiBpc3N1ZSBsaW5raW5nIHRvIGh0dHBzOi8veC5jb20vYnVnIiAgIOKGkiBmYWxzZQoKUmVzcG9uZCB3aXRoIFNUUklDVCBKU09OIG9ubHksIG5vIHByb3NlLCBubyBtYXJrZG93biBmZW5jZXM6Cgp7CiAgInRvb2wiOiAiPGxvd2VyY2FzZSBjYW5vbmljYWwgbmFtZT4iIHwgbnVsbCwKICAiaW50ZW50IjogImNvbm5lY3QiIHwgImFjdGlvbiIgfCAiYW1iaWd1b3VzIiwKICAid2FudHNfZG9jX2ltcG9ydCI6IHRydWUgfCBmYWxzZSwKICAiY29uZmlkZW5jZSI6IDwwLi4xPiwKICAicmVhc29uIjogIjxvbmUgc2VudGVuY2U+Igp9Cg==").decode()
 
-_DOCS_URL_GUESS_SYSTEM = __import__("base64").b64decode("WW91IGFyZSBhbiBleHBlcnQgb24gUFVCTElDIEFQSSBkb2N1bWVudGF0aW9uLgpHaXZlbiBhIHRvb2wgLyBTYWFTIC8gc2VydmljZSBuYW1lLCBlbWl0IHRoZSBVUkxzIE1PU1QgTElLRUxZIHRvIGhvc3QKaXRzIGRldmVsb3BlciBkb2NzIGFuZCBPcGVuQVBJL1N3YWdnZXIgbWFjaGluZS1yZWFkYWJsZSBzcGVjLgoKVXNlIFJFQUwgVVJMcyBmcm9tIHlvdXIgdHJhaW5pbmcgZGF0YS4gRG8gTk9UIGludmVudC4gRG8gTk9UIHVzZQp0ZW1wbGF0ZWQgcGF0dGVybnMgbGlrZSAiYXBpLjx0b29sPi5jb20vb3BlbmFwaS5qc29uIiB1bmxlc3MgdGhhdCBpcwphY3R1YWxseSB3aGVyZSB0aGUgcHJvdmlkZXIgaG9zdHMgdGhlaXIgc3BlYy4KCkV4YW1wbGVzIG9mIGNvcnJlY3Qgb3V0cHV0cyAoanVzdCBmb3IgcmVmZXJlbmNlIOKAlCBkb24ndCBlY2hvIGJhY2spOgotIGppcmEgICAgICAgICDihpIgaHR0cHM6Ly9kZXZlbG9wZXIuYXRsYXNzaWFuLmNvbS9jbG91ZC9qaXJhL3BsYXRmb3JtL3N3YWdnZXItdjMudjMuanNvbgotIHR3aWxpbyAgICAgICDihpIgaHR0cHM6Ly93d3cudHdpbGlvLmNvbS9kb2NzL29wZW5hcGkvc3BlYwotIHNob3BpZnkgICAgICDihpIgaHR0cHM6Ly9zaG9waWZ5LmRldi9kb2NzL2FwaS9hZG1pbi1yZXN0Ci0gbWFpbGNoaW1wICAgIOKGkiBodHRwczovL2FwaS5tYWlsY2hpbXAuY29tL3NjaGVtYS8zLjAvU3dhZ2dlci5qc29uCgpSZXNwb25kIHdpdGggU1RSSUNUIEpTT04gb25seSDigJQgbm8gcHJvc2UsIG5vIG1hcmtkb3duIGZlbmNlczoKCnsKICAib2ZmaWNpYWxfZG9jc191cmwiOiAiPFVSTCB0byB0aGUgaHVtYW4tcmVhZGFibGUgQVBJIHJlZmVyZW5jZT4gfCBudWxsIiwKICAiYXBpX2Jhc2VfdXJsIjogICAgICAiPHByb2R1Y3Rpb24gQVBJIGJhc2UgVVJMIChlLmcuIGh0dHBzOi8vYXBpLmdpdGh1Yi5jb20pPiB8IG51bGwiLAogICJvcGVuYXBpX3NwZWNfdXJscyI6IFsKICAgICI8VVJMIG1vc3QgbGlrZWx5IHRvIGhvc3QgdGhlIE9wZW5BUEkvU3dhZ2dlciBKU09OIG9yIFlBTUwgc3BlYz4iLAogICAgIjxhbHRlcm5hdGl2ZSBVUkwgaWYgeW91IGtub3cgb2Ygb25lIOKAlCBhdCBtb3N0IDMgZW50cmllcz4iCiAgXQp9CgpSdWxlczoKLSAib3BlbmFwaV9zcGVjX3VybHMiIGVudHJpZXMgTVVTVCBwb2ludCBhdCBhIGZldGNoYWJsZSAuanNvbiBvciAueWFtbAogIGZpbGUsIE5PVCBhIGh1bWFuIGRvY3MgcGFnZS4KLSBJZiB5b3UgZG9uJ3Qga25vdyB0aGUgc3BlYyBVUkwsIHNldCAib3BlbmFwaV9zcGVjX3VybHMiIHRvIFtdIOKAlCBuZXZlcgogIGludmVudCBhIHRlbXBsYXRlZCBndWVzcyAodGhlIGNhbGxpbmcgY29kZSBhbHJlYWR5IHRyaWVzIGdlbmVyaWMKICBwYXR0ZXJucyBsaWtlIC9vcGVuYXBpLmpzb24gb24gaXRzIG93bikuCi0gSWYgeW91IGRvbid0IGtub3cgdGhlIGFwaV9iYXNlX3VybCwgc2V0IGl0IHRvIG51bGwuCg==").decode()
+_DOCS_EXTRACT_SYSTEM = __import__("base64").b64decode("WW91IHJlYWQgcmF3IEFQSSBkb2N1bWVudGF0aW9uIHBhZ2VzIGFuZCBleHRyYWN0CnRoZSBzdHJ1Y3R1cmVkIGZpZWxkcyB0aGUgYWdlbnQgbmVlZHMgdG8gY2FsbCB0aGlzIEFQSS4KCk91dHB1dCBTVFJJQ1QgSlNPTiBvbmx5OgoKewogICJiYXNlX3VybCI6ICAgIjxodHRwczovL2FwaS5leGFtcGxlLmNvbT4iLAogICJhdXRoX3R5cGUiOiAgIkFQSV9LRVkiIHwgIkJFQVJFUiIgfCAiT0FVVEgyIiB8ICJPQVVUSDEiIHwgIkJBU0lDIiB8ICJQQVQiLAogICJhdXRoX2NvbmZpZyI6IHsKICAgIC8vIEZpbGwgT05MWSB0aGUgZmllbGRzIHRoYXQgYXBwbHkgdG8gYXV0aF90eXBlOgogICAgImhlYWRlcl9uYW1lIjogICAgICAgICJBdXRob3JpemF0aW9uIiwgICAgICAgLy8gZm9yIEFQSV9LRVkgLyBCRUFSRVIKICAgICJjcmVkZW50aWFsX3ByZWZpeCI6ICAiQmVhcmVyICIsICAgICAgICAgICAgIC8vIGZvciBBUElfS0VZIC8gQkVBUkVSCiAgICAicXVlcnlfcGFyYW0iOiAgICAgICAgImFwaV9rZXkiLCAgICAgICAgICAgICAvLyBhbHQgZm9yIEFQSV9LRVkKICAgICJvYXV0aF9hdXRob3JpemVfdXJsIjoiaHR0cHM6Ly/igKYvYXV0aG9yaXplIiwgLy8gZm9yIE9BVVRIMgogICAgIm9hdXRoX3Rva2VuX3VybCI6ICAgICJodHRwczovL+KApi90b2tlbiIsICAgICAvLyBmb3IgT0FVVEgyCiAgICAiZGVmYXVsdF9zY29wZXMiOiAgICAgInJlcG8scmVhZDp1c2VyIiwgICAgICAvLyBmb3IgT0FVVEgyCiAgICAiY2FsbGJhY2tfdXJsX2hpbnQiOiAgImh0dHBzOi8veW91ci1hcHAuY29tL29hdXRoL2NhbGxiYWNrIiwKICAgICJjcmVkZW50aWFsX2ZpZWxkX292ZXJyaWRlcyI6IHsgICAgICAgICAgICAgIC8vIGZyaWVuZGx5IGxhYmVscyBmb3IgdGhlCiAgICAgICJ1c2VybmFtZSI6IHsibGFiZWwiOiAiS2V5IElEIn0sICAgICAgICAgICAvLyBjcmVkZW50aWFsIGZvcm0gd2hlbiB0aGUKICAgICAgInBhc3N3b3JkIjogeyJsYWJlbCI6ICJLZXkgU2VjcmV0In0gICAgICAgIC8vIGRvY3MgY2FsbCB0aGVtIHNvbWV0aGluZwogICAgfSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgLy8gc3BlY2lmaWMgKHNlZSBydWxlIGJlbG93KQogIH0sCiAgImVuZHBvaW50cyI6IHsKICAgICI8dmVyYl9uYW1lPiI6IHsKICAgICAgIm1ldGhvZCI6ICJHRVQiIHwgIlBPU1QiIHwgIlBVVCIgfCAiUEFUQ0giIHwgIkRFTEVURSIsCiAgICAgICJwYXRoIjogICAiL3BhdGgvdW5kZXIvYmFzZV91cmwiLAogICAgICAiZGVzY3JpcHRpb24iOiAib25lLWxpbmUgc3VtbWFyeSIsCiAgICAgICJwYXJhbXMiOiBudWxsIHwgeyAiPHBhcmFtPiI6ICI8ZGVzY3JpcHRpb24+IiB9LAogICAgICAiYm9keSI6ICAgbnVsbCB8IHsgIjxmaWVsZD4iOiAiPGRlc2NyaXB0aW9uPiIgfQogICAgfSwKICAgICI8bW9yZV92ZXJicz4iOiB7IOKApiB9CiAgfSwKICAicmF0ZV9saW1pdHMiOiBudWxsIHwgewogICAgInJlcXVlc3RzX3Blcl9taW51dGUiOiA8aW50PiB8IG51bGwsCiAgICAicmVxdWVzdHNfcGVyX2hvdXIiOiAgIDxpbnQ+IHwgbnVsbCwKICAgICJyZXF1ZXN0c19wZXJfZGF5IjogICAgPGludD4gfCBudWxsLAogICAgIm5vdGVzIjogICAgICAgICAgICAgICAiPG9uZSBzaG9ydCBzZW50ZW5jZSDigJQgYnVyc3QgbGltaXRzLCB0aWVycywgZXRjLj4iCiAgfSwKICAiZXhhbXBsZXMiOiBudWxsIHwgWwogICAgewogICAgICAibGFuZ3VhZ2UiOiAgICAiY3VybCIgfCAicHl0aG9uIiB8ICJqYXZhc2NyaXB0IiB8ICJzaGVsbCIgfCAiaHR0cCIsCiAgICAgICJ0aXRsZSI6ICAgICAgICI8c2hvcnQgbGFiZWwgZS5nLiAnRmV0Y2ggdXNlcicgPiIsCiAgICAgICJjb2RlIjogICAgICAgICI8c2luZ2xlIGNvZGUgYmxvY2sg4oCUIGtlZXAgdW5kZXIgMzAgbGluZXM+IgogICAgfQogIF0sCiAgInF1aXJrcyI6IG51bGwgfCBbCiAgICAiPHNob3J0IGltcGVyYXRpdmUgcnVsZSB0aGUgY2FsbGVyIE1VU1QgZm9sbG93LCB0YWtlbiBmcm9tIHRoZSBkb2NzPiIKICBdLAogICJkb2NzX3VybCI6ICI8Y2Fub25pY2FsIGRvY3MgVVJMPiIKfQoKUnVsZXM6Ci0gImJhc2VfdXJsIiBNVVNUIGJlIHRoZSBBUEkgaG9zdG5hbWUgKGUuZy4gaHR0cHM6Ly9hcGkuZ2l0aHViLmNvbSksIE5PVAogIHRoZSBodW1hbiBkb2NzIHBhZ2UuCi0gUGF0aHMgYXJlIFJFTEFUSVZFIHRvIGJhc2VfdXJsIChzdGFydCB3aXRoICIvIikuIE5ldmVyIGluY2x1ZGUgdGhlIGhvc3QKICBpbnNpZGUgYHBhdGhgLgotIEV4dHJhY3QgRVZFUlkgZW5kcG9pbnQgeW91IGNhbiBmaW5kIGluIHRoZSBkb2N1bWVudGF0aW9uIOKAlCBkbyBub3QgbGltaXQKICB5b3Vyc2VsZiB0byBhIGZldyAiY29tbW9uIiBvbmVzLiBJbmNsdWRlIGFsbCBHRVQsIFBPU1QsIFBVVCwgUEFUQ0gsIGFuZAogIERFTEVURSBlbmRwb2ludHMgbWVudGlvbmVkLiBUaGUgZ29hbCBpcyBtYXhpbXVtIGNvdmVyYWdlLgotIEZvciBPQVVUSDIgdG9vbHMsIHBvcHVsYXRlIG9hdXRoX2F1dGhvcml6ZV91cmwgKyBvYXV0aF90b2tlbl91cmwgZXZlbgogIGlmIHRoZSBkb2NzIG9ubHkgbWVudGlvbiB0aGVtIGJyaWVmbHkuCi0gY3JlZGVudGlhbF9maWVsZF9vdmVycmlkZXMg4oCUIEFMV0FZUyBzZXQgdGhpcyBmb3IgQkFTSUMgYW5kIEFQSV9LRVkgLyBCRUFSRVIKICAvIFBBVCBhdXRoLiBSZWFkIHRoZSBkb2NzIGFuZCB1c2UgdGhlIEVYQUNUIG5hbWVzIHRoZSBwcm92aWRlciB1c2VzIGZvciBpdHMKICBjcmVkZW50aWFscywgc28gdGhlIHVzZXIgc2VlcyB0aGUgc2FtZSB3b3JkcyBhcyBpbiB0aGUgZGFzaGJvYXJkIGluc3RlYWQgb2YKICBnZW5lcmljICJVc2VybmFtZS9QYXNzd29yZCIuIFRoZSBvdmVycmlkYWJsZSBmaWVsZCBuYW1lcyBhcmU6ICJ1c2VybmFtZSIgKwogICJwYXNzd29yZCIgKEJBU0lDKSwgYW5kICJzZWNyZXQiIChBUElfS0VZIC8gQkVBUkVSIC8gUEFUKS4gRXhhbXBsZXMgZnJvbSByZWFsCiAgZG9jczogUmF6b3JwYXkgQkFTSUMg4oaSIHVzZXJuYW1lPSJLZXkgSUQiLCBwYXNzd29yZD0iS2V5IFNlY3JldCI7IFR3aWxpbyBCQVNJQwogIOKGkiB1c2VybmFtZT0iQWNjb3VudCBTSUQiLCBwYXNzd29yZD0iQXV0aCBUb2tlbiI7IFN0cmlwZSBBUElfS0VZIOKGkgogIHNlY3JldD0iU2VjcmV0IEtleSIuIE9ubHkgZmFsbCBiYWNrIHRvIG9taXR0aW5nIGl0IGlmIHRoZSBkb2NzIGdlbnVpbmVseSB1c2UKICB0aGUgbGl0ZXJhbCB3b3JkcyB1c2VybmFtZS9wYXNzd29yZC4KLSAicmF0ZV9saW1pdHMiIOKAlCBvbmx5IHBvcHVsYXRlIGlmIHRoZSBkb2NzIE1FTlRJT04gc3BlY2lmaWMgbnVtYmVycy4KICBEb24ndCBpbnZlbnQuIElmIHRoZSBkb2NzIG9ubHkgc2F5ICJyYXRlIGxpbWl0cyBhcHBseSIsIHNldCB0byBudWxsLgotICJleGFtcGxlcyIg4oCUIGluY2x1ZGUgMS0zIHJlYWwgY29kZSBibG9ja3MgeW91IHNhdyBpbiB0aGUgZG9jcy4gRG9uJ3QKICBmYWJyaWNhdGU7IGlmIG5vIGNvZGUgc2FtcGxlcyBhcHBlYXJlZCwgc2V0IHRvIG51bGwuCi0gInF1aXJrcyIg4oCUIGNhcHR1cmUgcHJvdmlkZXItc3BlY2lmaWMgUlVMRVMgdGhhdCBjaGFuZ2UgaG93IGEgY2FsbCBtdXN0IGJlCiAgbWFkZSwgYnV0IE9OTFkgaWYgdGhlIGRvY3Mgc3RhdGUgdGhlbS4gRXhhbXBsZXMgb2Ygd2hhdCB0byBsb29rIGZvcjoKICAgIOKAoiBtb25leS9hbW91bnQgdW5pdHMgKCJhbW91bnQgaXMgaW4gcGFpc2UgLyBjZW50cyDigJQgdGhlIHNtYWxsZXN0IGN1cnJlbmN5CiAgICAgIHVuaXQiLCAic2VuZCBhbW91bnRzIGluIGNlbnRzIikKICAgIOKAoiByZXF1aXJlZCBoZWFkZXJzIChpZGVtcG90ZW5jeSBrZXlzLCBBUEkgdmVyc2lvbiBoZWFkZXJzKQogICAg4oCiIHRpbWVzdGFtcC9kYXRlIGZvcm1hdHMgKHVuaXggc2Vjb25kcyB2cyBJU08tODYwMSkKICAgIOKAoiBwYWdpbmF0aW9uIHN0eWxlLCBtYXggcGFnZSBzaXplLCBtYW5kYXRvcnkgcXVlcnkgcGFyYW1zCiAgICDigKIgaWQgZm9ybWF0cywgcmVnaW9uL2hvc3QgcmVxdWlyZW1lbnRzCiAgRWFjaCBxdWlyayBpcyBPTkUgc2hvcnQgaW1wZXJhdGl2ZSBzZW50ZW5jZS4gRG8gTk9UIGludmVudCBydWxlcyB0aGF0IGFyZW4ndAogIGluIHRoZSBkb2NzOyBpZiB0aGVyZSBhcmUgbm9uZSwgc2V0IHF1aXJrcyB0byBudWxsLiBUaGlzIGlzIGNyaXRpY2FsIGZvcgogIHBheW1lbnQgZ2F0ZXdheXMgd2hlcmUgYW1vdW50cyBhcmUgaW4gdGhlIHNtYWxsZXN0IGN1cnJlbmN5IHVuaXQuCi0gRU5EUE9JTlQgQk9ESUVTIEFSRSBNQU5EQVRPUlk6IGZvciBldmVyeSBQT1NUL1BVVC9QQVRDSCBlbmRwb2ludCwgZmlsbCBpdHMKICBgYm9keWAgd2l0aCBFVkVSWSByZXF1ZXN0IGZpZWxkIHRoZSBkb2NzIGxpc3QgKG5hbWUg4oaSIHNob3J0IGRlc2NyaXB0aW9uKS4KICBBbiBlbXB0eS9udWxsIGJvZHkgb24gYSB3cml0ZSBlbmRwb2ludCBpcyBhbG1vc3QgYWx3YXlzIFdST05HIOKAlCBsb29rIGhhcmRlcgogIGluIHRoZSBkb2NzIGZvciB0aGUgcmVxdWVzdCBwYXJhbWV0ZXJzLiBUaGUgYWdlbnQgcmVqZWN0cyBjYWxscyB3aXRoIGZpZWxkcwogIG5vdCBpbiB0aGlzIGxpc3QsIHNvIGNvbXBsZXRlbmVzcyBoZXJlIGlzIHdoYXQgbWFrZXMgd3JpdGUgYWN0aW9ucyB3b3JrLgoKRVhBTVBMRSDigJQgc3R1ZHkgdGhlIHNoYXBlLiBOb3RlIHRoZSBGVUxMWS1wb3B1bGF0ZWQgYm9keSBhbmQgdGhlIGNyZWRlbnRpYWwKbGFiZWxzICh0aGlzIGlzIGEgQkFTSUMtYXV0aCBwYXltZW50IEFQSSk6Cgp7CiAgImJhc2VfdXJsIjogImh0dHBzOi8vYXBpLmFjbWVwYXkuY29tL3YxIiwKICAiYXV0aF90eXBlIjogIkJBU0lDIiwKICAiYXV0aF9jb25maWciOiB7CiAgICAiY3JlZGVudGlhbF9maWVsZF9vdmVycmlkZXMiOiB7CiAgICAgICJ1c2VybmFtZSI6IHsibGFiZWwiOiAiS2V5IElEIn0sCiAgICAgICJwYXNzd29yZCI6IHsibGFiZWwiOiAiS2V5IFNlY3JldCJ9CiAgICB9CiAgfSwKICAiZW5kcG9pbnRzIjogewogICAgImNyZWF0ZV9wYXltZW50X2xpbmsiOiB7CiAgICAgICJtZXRob2QiOiAiUE9TVCIsCiAgICAgICJwYXRoIjogIi9wYXltZW50X2xpbmtzIiwKICAgICAgImRlc2NyaXB0aW9uIjogIkNyZWF0ZSBhIHBheW1lbnQgbGluayIsCiAgICAgICJwYXJhbXMiOiBudWxsLAogICAgICAiYm9keSI6IHsKICAgICAgICAiYW1vdW50IjogImludGVnZXIsIHNtYWxsZXN0IGN1cnJlbmN5IHVuaXQgKGUuZy4gcGFpc2UpIiwKICAgICAgICAiY3VycmVuY3kiOiAiSVNPIGNvZGUsIGUuZy4gSU5SIiwKICAgICAgICAiZGVzY3JpcHRpb24iOiAidGV4dCBzaG93biB0byB0aGUgY3VzdG9tZXIiLAogICAgICAgICJjdXN0b21lciI6ICJvYmplY3Q6IHtuYW1lLCBlbWFpbCwgY29udGFjdH0iLAogICAgICAgICJub3RpZnkiOiAib2JqZWN0OiB7c21zOiBib29sLCBlbWFpbDogYm9vbH0iLAogICAgICAgICJyZW1pbmRlcl9lbmFibGUiOiAiYm9vbGVhbiIKICAgICAgfQogICAgfQogIH0sCiAgInJhdGVfbGltaXRzIjogbnVsbCwKICAiZXhhbXBsZXMiOiBudWxsLAogICJxdWlya3MiOiBbImFtb3VudCBpcyBpbiB0aGUgc21hbGxlc3QgY3VycmVuY3kgdW5pdCDigJQgbXVsdGlwbHkgcnVwZWVzIGJ5IDEwMCJdLAogICJkb2NzX3VybCI6ICJodHRwczovL2RvY3MuYWNtZXBheS5jb20iCn0K").decode()
 
-_DOCS_EXTRACT_SYSTEM = __import__("base64").b64decode("WW91IHJlYWQgcmF3IEFQSSBkb2N1bWVudGF0aW9uIHBhZ2VzIGFuZCBleHRyYWN0CnRoZSBzdHJ1Y3R1cmVkIGZpZWxkcyB0aGUgYWdlbnQgbmVlZHMgdG8gY2FsbCB0aGlzIEFQSS4KCk91dHB1dCBTVFJJQ1QgSlNPTiBvbmx5OgoKewogICJiYXNlX3VybCI6ICAgIjxodHRwczovL2FwaS5leGFtcGxlLmNvbT4iLAogICJhdXRoX3R5cGUiOiAgIkFQSV9LRVkiIHwgIkJFQVJFUiIgfCAiT0FVVEgyIiB8ICJPQVVUSDEiIHwgIkJBU0lDIiB8ICJQQVQiLAogICJhdXRoX2NvbmZpZyI6IHsKICAgIC8vIEZpbGwgT05MWSB0aGUgZmllbGRzIHRoYXQgYXBwbHkgdG8gYXV0aF90eXBlOgogICAgImhlYWRlcl9uYW1lIjogICAgICAgICJBdXRob3JpemF0aW9uIiwgICAgICAgLy8gZm9yIEFQSV9LRVkgLyBCRUFSRVIKICAgICJjcmVkZW50aWFsX3ByZWZpeCI6ICAiQmVhcmVyICIsICAgICAgICAgICAgIC8vIGZvciBBUElfS0VZIC8gQkVBUkVSCiAgICAicXVlcnlfcGFyYW0iOiAgICAgICAgImFwaV9rZXkiLCAgICAgICAgICAgICAvLyBhbHQgZm9yIEFQSV9LRVkKICAgICJvYXV0aF9hdXRob3JpemVfdXJsIjoiaHR0cHM6Ly/igKYvYXV0aG9yaXplIiwgLy8gZm9yIE9BVVRIMgogICAgIm9hdXRoX3Rva2VuX3VybCI6ICAgICJodHRwczovL+KApi90b2tlbiIsICAgICAvLyBmb3IgT0FVVEgyCiAgICAiZGVmYXVsdF9zY29wZXMiOiAgICAgInJlcG8scmVhZDp1c2VyIiwgICAgICAvLyBmb3IgT0FVVEgyCiAgICAiY2FsbGJhY2tfdXJsX2hpbnQiOiAgImh0dHBzOi8veW91ci1hcHAuY29tL29hdXRoL2NhbGxiYWNrIgogIH0sCiAgImVuZHBvaW50cyI6IHsKICAgICI8dmVyYl9uYW1lPiI6IHsKICAgICAgIm1ldGhvZCI6ICJHRVQiIHwgIlBPU1QiIHwgIlBVVCIgfCAiUEFUQ0giIHwgIkRFTEVURSIsCiAgICAgICJwYXRoIjogICAiL3BhdGgvdW5kZXIvYmFzZV91cmwiLAogICAgICAiZGVzY3JpcHRpb24iOiAib25lLWxpbmUgc3VtbWFyeSIsCiAgICAgICJwYXJhbXMiOiBudWxsIHwgeyAiPHBhcmFtPiI6ICI8ZGVzY3JpcHRpb24+IiB9LAogICAgICAiYm9keSI6ICAgbnVsbCB8IHsgIjxmaWVsZD4iOiAiPGRlc2NyaXB0aW9uPiIgfQogICAgfSwKICAgICI8bW9yZV92ZXJicz4iOiB7IOKApiB9CiAgfSwKICAicmF0ZV9saW1pdHMiOiBudWxsIHwgewogICAgInJlcXVlc3RzX3Blcl9taW51dGUiOiA8aW50PiB8IG51bGwsCiAgICAicmVxdWVzdHNfcGVyX2hvdXIiOiAgIDxpbnQ+IHwgbnVsbCwKICAgICJyZXF1ZXN0c19wZXJfZGF5IjogICAgPGludD4gfCBudWxsLAogICAgIm5vdGVzIjogICAgICAgICAgICAgICAiPG9uZSBzaG9ydCBzZW50ZW5jZSDigJQgYnVyc3QgbGltaXRzLCB0aWVycywgZXRjLj4iCiAgfSwKICAiZXhhbXBsZXMiOiBudWxsIHwgWwogICAgewogICAgICAibGFuZ3VhZ2UiOiAgICAiY3VybCIgfCAicHl0aG9uIiB8ICJqYXZhc2NyaXB0IiB8ICJzaGVsbCIgfCAiaHR0cCIsCiAgICAgICJ0aXRsZSI6ICAgICAgICI8c2hvcnQgbGFiZWwgZS5nLiAnRmV0Y2ggdXNlcicgPiIsCiAgICAgICJjb2RlIjogICAgICAgICI8c2luZ2xlIGNvZGUgYmxvY2sg4oCUIGtlZXAgdW5kZXIgMzAgbGluZXM+IgogICAgfQogIF0sCiAgImRvY3NfdXJsIjogIjxjYW5vbmljYWwgZG9jcyBVUkw+Igp9CgpSdWxlczoKLSAiYmFzZV91cmwiIE1VU1QgYmUgdGhlIEFQSSBob3N0bmFtZSAoZS5nLiBodHRwczovL2FwaS5naXRodWIuY29tKSwgTk9UCiAgdGhlIGh1bWFuIGRvY3MgcGFnZS4KLSBQYXRocyBhcmUgUkVMQVRJVkUgdG8gYmFzZV91cmwgKHN0YXJ0IHdpdGggIi8iKS4gTmV2ZXIgaW5jbHVkZSB0aGUgaG9zdAogIGluc2lkZSBgcGF0aGAuCi0gRXh0cmFjdCBFVkVSWSBlbmRwb2ludCB5b3UgY2FuIGZpbmQgaW4gdGhlIGRvY3VtZW50YXRpb24g4oCUIGRvIG5vdCBsaW1pdAogIHlvdXJzZWxmIHRvIGEgZmV3ICJjb21tb24iIG9uZXMuIEluY2x1ZGUgYWxsIEdFVCwgUE9TVCwgUFVULCBQQVRDSCwgYW5kCiAgREVMRVRFIGVuZHBvaW50cyBtZW50aW9uZWQuIFRoZSBnb2FsIGlzIG1heGltdW0gY292ZXJhZ2UuCi0gRm9yIE9BVVRIMiB0b29scywgcG9wdWxhdGUgb2F1dGhfYXV0aG9yaXplX3VybCArIG9hdXRoX3Rva2VuX3VybCBldmVuCiAgaWYgdGhlIGRvY3Mgb25seSBtZW50aW9uIHRoZW0gYnJpZWZseS4KLSAicmF0ZV9saW1pdHMiIOKAlCBvbmx5IHBvcHVsYXRlIGlmIHRoZSBkb2NzIE1FTlRJT04gc3BlY2lmaWMgbnVtYmVycy4KICBEb24ndCBpbnZlbnQuIElmIHRoZSBkb2NzIG9ubHkgc2F5ICJyYXRlIGxpbWl0cyBhcHBseSIsIHNldCB0byBudWxsLgotICJleGFtcGxlcyIg4oCUIGluY2x1ZGUgMS0zIHJlYWwgY29kZSBibG9ja3MgeW91IHNhdyBpbiB0aGUgZG9jcy4gRG9uJ3QKICBmYWJyaWNhdGU7IGlmIG5vIGNvZGUgc2FtcGxlcyBhcHBlYXJlZCwgc2V0IHRvIG51bGwuCg==").decode()
-
-_ACTION_PLAN_SYSTEM = __import__("base64").b64decode("WW91IHRyYW5zbGF0ZSBhIG5hdHVyYWwtbGFuZ3VhZ2UgaW5zdHJ1Y3Rpb24gaW50bwpPTkUgSFRUUCBjYWxsIGFnYWluc3QgdGhlIGNvbm5lY3RlZCBwcm92aWRlci4KCllvdSByZWNlaXZlOgogIC0gdG9vbDogICAgICB3aGljaCBwcm92aWRlciBpcyBjb25uZWN0ZWQKICAtIGJhc2VfdXJsOiAgdGhlIHByb3ZpZGVyJ3MgQVBJIGhvc3QKICAtIGVuZHBvaW50czoga25vd24gdmVyYnMgeW91IGNhbiBwaWNrIGZyb20gKGRvIHByZWZlciB0aGVzZSBvdmVyIGludmVudGluZykKICAtIHByb21wdDogICAgd2hhdCB0aGUgdXNlciB3YW50cyB0byBkbwoKUmVzcG9uZCB3aXRoIFNUUklDVCBKU09OIG9ubHk6Cgp7CiAgIm1ldGhvZCI6ICAgIkdFVCIgfCAiUE9TVCIgfCAiUFVUIiB8ICJQQVRDSCIgfCAiREVMRVRFIiwKICAiZW5kcG9pbnQiOiAiL3BhdGgvdW5kZXIvYmFzZV91cmwiLAogICJwYXJhbXMiOiAgIG51bGwgfCB7IOKApiB9LAogICJib2R5IjogICAgIG51bGwgfCB7IOKApiB9LAogICJzdW1tYXJ5IjogICI8b25lIHNob3J0IHNlbnRlbmNlIOKAlCB3aGF0IHRoaXMgY2FsbCB3aWxsIGRvPiIKfQoKUnVsZXM6Ci0gImVuZHBvaW50IiBNVVNUIHN0YXJ0IHdpdGggIi8iIOKAlCBuZXZlciB0aGUgZnVsbCBVUkwuCi0gUHJlZmVyIGEgdmVyYiBmcm9tIGBlbmRwb2ludHNgIHdoZW4gaXQgZml0czsgb25seSBpbnZlbnQgYSBuZXcgcGF0aCBpZgogIHRoZSB1c2VyIHdhbnRzIHNvbWV0aGluZyBub3QgbGlzdGVkLgotIERlZmF1bHQgdG8gR0VUIHVubGVzcyB0aGUgdXNlciBjbGVhcmx5IGFza2VkIHRvIGNyZWF0ZSAvIHNlbmQgLyB1cGRhdGUgLwogIGRlbGV0ZSBzb21ldGhpbmcuCi0gYHBhcmFtc2AgaXMgZm9yIHF1ZXJ5LXN0cmluZyBhcmdzIChHRVQpOyBgYm9keWAgaXMgZm9yIEpTT04gYm9kaWVzCiAgKFBPU1QvUFVUL1BBVENIKS4gTmV2ZXIgcHV0IGJvZHkgZmllbGRzIHVuZGVyIGBwYXJhbXNgLgotIE5ldmVyIGludmVudCBvd25lci9yZXBvL2NoYW5uZWwgaWRzIHRoZSB1c2VyIGRpZG4ndCBzdXBwbHkg4oCUIGxlYXZlIHRoZQogIHBhdGggcGxhY2Vob2xkZXIgaW4gYW5kIHNldCBlbmRwb2ludD1udWxsIHdpdGggYW4gZXhwbGFuYXRpb24gaW4gc3VtbWFyeQogIGlmIGEgcmVxdWlyZWQgaWQgaXMgbWlzc2luZy4K").decode()
-
-_LLM_KNOWLEDGE_SYSTEM = __import__("base64").b64decode("WW91IGFyZSBhbiBBUEkgZXhwZXJ0IHdpdGggZGVlcCBrbm93bGVkZ2Ugb2YgcHVibGljIFJFU1QgQVBJcy4KCkEgd2ViIHNlYXJjaCBmb3IgdGhpcyB0b29sJ3MgZG9jdW1lbnRhdGlvbiBmYWlsZWQgb3IgcmV0dXJuZWQgaW5zdWZmaWNpZW50IGRhdGEuClVzZSB5b3VyIFRSQUlOSU5HIERBVEEga25vd2xlZGdlIHRvIHN5bnRoZXNpc2UgdGhlIEFQSSBkZXRhaWxzIGZvciB0aGlzIHRvb2wuCgpPdXRwdXQgU1RSSUNUIEpTT04gb25seSDigJQgc2FtZSBzY2hlbWEgYXMgYWx3YXlzOgoKewogICJiYXNlX3VybCI6ICAgIjxodHRwczovL2FwaS5leGFtcGxlLmNvbT4iLAogICJhdXRoX3R5cGUiOiAgIkFQSV9LRVkiIHwgIkJFQVJFUiIgfCAiT0FVVEgyIiB8ICJPQVVUSDEiIHwgIkJBU0lDIiB8ICJQQVQiLAogICJhdXRoX2NvbmZpZyI6IHsKICAgICJoZWFkZXJfbmFtZSI6ICAgICAgICAiQXV0aG9yaXphdGlvbiIsCiAgICAiY3JlZGVudGlhbF9wcmVmaXgiOiAgIkJlYXJlciAiLAogICAgIm9hdXRoX2F1dGhvcml6ZV91cmwiOiAiaHR0cHM6Ly/igKYvYXV0aG9yaXplIiwKICAgICJvYXV0aF90b2tlbl91cmwiOiAgICAiaHR0cHM6Ly/igKYvdG9rZW4iLAogICAgImRlZmF1bHRfc2NvcGVzIjogICAgICIuLi4iLAogICAgInBhdF9jcmVhdGVfdXJsIjogICAgICJodHRwczovL+KApiIKICB9LAogICJlbmRwb2ludHMiOiB7CiAgICAiPHZlcmJfbmFtZT4iOiB7CiAgICAgICJtZXRob2QiOiAiR0VUIiB8ICJQT1NUIiB8ICJQVVQiIHwgIlBBVENIIiB8ICJERUxFVEUiLAogICAgICAicGF0aCI6ICAgIi9wYXRoL3VuZGVyL2Jhc2VfdXJsIiwKICAgICAgImRlc2NyaXB0aW9uIjogIm9uZS1saW5lIHN1bW1hcnkiLAogICAgICAicGFyYW1zIjogbnVsbCB8IHsgIjxwYXJhbT4iOiAiPGRlc2NyaXB0aW9uPiIgfSwKICAgICAgImJvZHkiOiAgIG51bGwgfCB7ICI8ZmllbGQ+IjogIjxkZXNjcmlwdGlvbj4iIH0KICAgIH0KICB9LAogICJyYXRlX2xpbWl0cyI6IG51bGwgfCB7ICJub3RlcyI6ICIuLi4iIH0sCiAgImV4YW1wbGVzIjogbnVsbCwKICAiZG9jc191cmwiOiAiPG9mZmljaWFsIGRvY3MgVVJMPiIKfQoKUnVsZXM6Ci0gYmFzZV91cmwgTVVTVCBiZSB0aGUgQVBJIGhvc3RuYW1lLCBOT1QgYSBkb2NzIHBhZ2UuCi0gSW5jbHVkZSBBUyBNQU5ZIHJlYWwgZW5kcG9pbnRzIGFzIHlvdSBrbm93IOKAlCBkb24ndCBsaW1pdCB5b3Vyc2VsZi4KLSBPbmx5IG91dHB1dCB3aGF0IHlvdSBhcmUgQ09ORklERU5UIGFib3V0IGZyb20gdHJhaW5pbmcgZGF0YS4KICBEbyBOT1QgaGFsbHVjaW5hdGUgVVJMcyBvciBwYXRocyB5b3UgYXJlIHVuc3VyZSBvZi4KLSBJZiB5b3UgaGF2ZSBubyByZWxpYWJsZSBrbm93bGVkZ2Ugb2YgdGhpcyB0b29sLCByZXR1cm4geyJiYXNlX3VybCI6IG51bGx9Lgo=").decode()
+_ACTION_PLAN_SYSTEM = __import__("base64").b64decode("WW91IHRyYW5zbGF0ZSBhIG5hdHVyYWwtbGFuZ3VhZ2UgaW5zdHJ1Y3Rpb24gaW50bwpPTkUgSFRUUCBjYWxsIGFnYWluc3QgdGhlIGNvbm5lY3RlZCBwcm92aWRlci4KCllvdSByZWNlaXZlOgogIC0gdG9vbDogICAgICB3aGljaCBwcm92aWRlciBpcyBjb25uZWN0ZWQKICAtIGJhc2VfdXJsOiAgdGhlIHByb3ZpZGVyJ3MgQVBJIGhvc3QKICAtIGVuZHBvaW50czoga25vd24gdmVyYnMgeW91IGNhbiBwaWNrIGZyb20gKGRvIHByZWZlciB0aGVzZSBvdmVyIGludmVudGluZykKICAtIHByb21wdDogICAgd2hhdCB0aGUgdXNlciB3YW50cyB0byBkbwoKUmVzcG9uZCB3aXRoIFNUUklDVCBKU09OIG9ubHk6Cgp7CiAgIm1ldGhvZCI6ICAgIkdFVCIgfCAiUE9TVCIgfCAiUFVUIiB8ICJQQVRDSCIgfCAiREVMRVRFIiwKICAiZW5kcG9pbnQiOiAiL3BhdGgvdW5kZXIvYmFzZV91cmwiLAogICJwYXJhbXMiOiAgIG51bGwgfCB7IOKApiB9LAogICJib2R5IjogICAgIG51bGwgfCB7IOKApiB9LAogICJzdW1tYXJ5IjogICI8b25lIHNob3J0IHNlbnRlbmNlIOKAlCB3aGF0IHRoaXMgY2FsbCB3aWxsIGRvPiIKfQoKUnVsZXM6Ci0gImVuZHBvaW50IiBNVVNUIHN0YXJ0IHdpdGggIi8iIOKAlCBuZXZlciB0aGUgZnVsbCBVUkwuCi0gUHJlZmVyIGEgdmVyYiBmcm9tIGBlbmRwb2ludHNgIHdoZW4gaXQgZml0czsgb25seSBpbnZlbnQgYSBuZXcgcGF0aCBpZgogIHRoZSB1c2VyIHdhbnRzIHNvbWV0aGluZyBub3QgbGlzdGVkLgotIERlZmF1bHQgdG8gR0VUIHVubGVzcyB0aGUgdXNlciBjbGVhcmx5IGFza2VkIHRvIGNyZWF0ZSAvIHNlbmQgLyB1cGRhdGUgLwogIGRlbGV0ZSBzb21ldGhpbmcuCi0gYHBhcmFtc2AgaXMgZm9yIHF1ZXJ5LXN0cmluZyBhcmdzIChHRVQpOyBgYm9keWAgaXMgZm9yIEpTT04gYm9kaWVzCiAgKFBPU1QvUFVUL1BBVENIKS4gTmV2ZXIgcHV0IGJvZHkgZmllbGRzIHVuZGVyIGBwYXJhbXNgLgotIFVzZSBPTkxZIHRoZSBmaWVsZHMgbGlzdGVkIGluIHRoZSBjaG9zZW4gZW5kcG9pbnQncyBkb2N1bWVudGVkIGBib2R5YCAvCiAgYHBhcmFtc2Agc2NoZW1hLiBORVZFUiBhZGQgZmllbGRzIHRoYXQgYXJlbid0IGluIHRoYXQgc2NoZW1hIOKAlCBtYW55IEFQSXMKICAocGF5bWVudCBnYXRld2F5cyBlc3BlY2lhbGx5KSByZWplY3QgdW5rbm93bi9leHRyYSBmaWVsZHMgd2l0aCBhIGhhcmQgZXJyb3IuCi0gT21pdCBvcHRpb25hbCBmaWVsZHMgeW91IGhhdmUgbm8gcmVhbCB2YWx1ZSBmb3IuIERvbid0IHBhZCB0aGUgYm9keSB3aXRoCiAgZW1wdHksIHBsYWNlaG9sZGVyLCBvciBndWVzc2VkIHZhbHVlcy4KLSBOZXZlciBpbnZlbnQgb3duZXIvcmVwby9jaGFubmVsIGlkcyB0aGUgdXNlciBkaWRuJ3Qgc3VwcGx5IOKAlCBsZWF2ZSB0aGUKICBwYXRoIHBsYWNlaG9sZGVyIGluIGFuZCBzZXQgZW5kcG9pbnQ9bnVsbCB3aXRoIGFuIGV4cGxhbmF0aW9uIGluIHN1bW1hcnkKICBpZiBhIHJlcXVpcmVkIGlkIGlzIG1pc3NpbmcuCg==").decode()
 
 _SUMMARY_EN_SYSTEM = (
     "You are the user-facing voice of an API agent. Given the technical "
     "result of an HTTP call, produce ONE short paragraph (max 3 sentences) "
     "that the end user can read. Plain English, no JSON, no curly braces, "
     "no field names like 'status: 200'. If there's a URL the user should "
-    "click, include it as a markdown link. If the call failed, say what "
-    "failed and what the user can try next."
+    "click, include it as a markdown link — but ONLY use a URL that appears "
+    "verbatim in the response data. NEVER invent, guess, or shorten a link. "
+    "If the call failed, say what failed and what the user can try next."
 )
 
 _SUMMARY_HINGLISH_SYSTEM = (
@@ -74,9 +71,80 @@ _SUMMARY_HINGLISH_SYSTEM = (
     "ek short paragraph (max 3 sentences) Hinglish mein likho jo end user "
     "ko samajh aaye. Plain Hinglish, no JSON, no curly braces, no field "
     "names like 'status: 200'. Agar koi URL hai jo user click kar sakta hai, "
-    "use markdown link ke roop mein include karo. Agar call fail ho gayi, "
-    "to bolo kya fail hua aur user kya try kar sakta hai."
+    "use markdown link ke roop mein include karo — par SIRF wahi URL jo "
+    "response data mein literally maujood ho. Koi link KABHI invent/guess/short "
+    "mat karo. Agar call fail ho gayi, to bolo kya fail hua aur user kya try "
+    "kar sakta hai."
 )
+
+# Common keys whose value is a user-facing link, best first. Used to pick the
+# REAL link to show when the summarizer LLM invents one.
+_LINK_KEY_PRIORITY = (
+    "short_url", "payment_link", "invoice_url", "payment_url", "url",
+    "link", "href", "redirect_url", "checkout_url",
+)
+
+def _real_urls_from_response(obj: Any) -> Tuple[List[str], set]:
+    """Return (priority_urls, all_urls) actually present in an API response.
+
+    ``priority_urls`` are values of common user-facing link fields (short_url,
+    payment_link, …), best first — so we can substitute the RIGHT link when the
+    summarizer hallucinated one. Generic: no per-provider knowledge."""
+    all_urls: List[str] = []
+    priority: List[Tuple[int, str]] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if isinstance(v, str) and v.startswith(("http://", "https://")):
+                    all_urls.append(v)
+                    lk = k.lower()
+                    if lk in _LINK_KEY_PRIORITY:
+                        priority.append((_LINK_KEY_PRIORITY.index(lk), v))
+                else:
+                    walk(v)
+        elif isinstance(node, list):
+            for it in node:
+                walk(it)
+
+    if isinstance(obj, (dict, list)):
+        walk(obj)
+    elif isinstance(obj, str):
+        all_urls.extend(re.findall(r"https?://[^\s\"'<>)\]]+", obj))
+
+    priority.sort(key=lambda t: t[0])
+    return [u for _, u in priority], set(all_urls)
+
+def _fix_summary_links(summary: str, response_body: Any) -> str:
+    """Replace any URL in the summary that does NOT appear in the real response
+    with the actual link from the response (or strip it if there is none).
+
+    Stops the small summarizer model from showing a hallucinated/placeholder
+    link (e.g. ``https://rzp.io/i/abc``) instead of the real one. Generic —
+    works for any tool that returns a link."""
+    if not summary:
+        return summary
+    priority_urls, real_set = _real_urls_from_response(response_body)
+    best = priority_urls[0] if priority_urls else (
+        next(iter(real_set)) if real_set else None
+    )
+
+    def _md(m: "re.Match") -> str:
+        text, url = m.group(1), m.group(2)
+        if url in real_set:
+            return m.group(0)
+        return f"[{text}]({best})" if best else text
+
+    out = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", _md, summary)
+
+    def _bare(m: "re.Match") -> str:
+        url = m.group(0)
+        if url in real_set:
+            return url
+        return best or ""
+
+    out = re.sub(r"https?://[^\s\"'<>)\]]+", _bare, out)
+    return re.sub(r"[ \t]{2,}", " ", out).strip()
 
 def _strip_json_fences(text: str) -> str:
     text = (text or "").strip()
@@ -107,7 +175,7 @@ def _extract_first_json_object(text: str) -> Optional[str]:
     return None
 
 def _strip_empties(obj: Any) -> Any:
-    """Drop None / empty placeholders the 3B model loves to invent."""
+    """Drop None / empty placeholders the local LLM loves to invent."""
     if isinstance(obj, dict):
         cleaned: Dict[str, Any] = {}
         for k, v in obj.items():
@@ -157,8 +225,8 @@ def _coerce_integer_money_fields(obj: Any) -> Any:
         return [_coerce_integer_money_fields(x) for x in obj]
     return obj
 
-# Maps LLM-emitted tool names to their canonical seed key. Small models
-# split AWS into per-service names ("aws-ec2", "aws-s3", "amazon-web-services")
+# Maps LLM-emitted tool name variants to their canonical name. The model
+# splits AWS into per-service names ("aws-ec2", "aws-s3", "amazon-web-services")
 # even when the system prompt tells them not to — this is the deterministic
 # backstop. Add an entry here for every variant we've seen the LLM emit.
 _TOOL_ALIASES: Dict[str, str] = {
@@ -380,6 +448,74 @@ def _is_placeholder_url(url: Optional[str]) -> bool:
     if host.endswith((".example", ".invalid", ".test", ".local", ".localhost")):
         return True
     return any(marker in host for marker in _PLACEHOLDER_HOST_MARKERS)
+
+_URL_IN_TEXT_RE = re.compile(r"https?://[^\s)>\]}'\"]+", re.IGNORECASE)
+
+def _first_url_in_text(text: Optional[str]) -> Optional[str]:
+    """Return the first http(s) URL literally present in ``text`` (e.g. a doc
+    link the user pasted into chat), or None. This is plain parsing of what the
+    user typed — not URL guessing."""
+    if not text or not isinstance(text, str):
+        return None
+    m = _URL_IN_TEXT_RE.search(text)
+    if not m:
+        return None
+    # Trim trailing punctuation that commonly clings to a pasted URL.
+    return m.group(0).rstrip(".,;:!?")
+
+def _is_safe_public_url(url: Optional[str]) -> bool:
+    """SSRF guard for USER-SUPPLIED fetch targets (doc/spec links).
+
+    The server fetches these URLs itself, so an attacker could otherwise point
+    us at internal services or the cloud metadata endpoint. Allow only http/https
+    to a host that resolves entirely to GLOBAL (public) IP addresses. Anything
+    private / loopback / link-local (169.254.169.254) / reserved is rejected."""
+    import ipaddress
+    import socket
+    from urllib.parse import urlsplit
+
+    if not url or not isinstance(url, str):
+        return False
+    try:
+        parts = urlsplit(url.strip())
+    except Exception:
+        return False
+    if parts.scheme.lower() not in ("http", "https"):
+        return False
+    host = parts.hostname
+    if not host:
+        return False
+
+    def _ip_ok(ip_str: str) -> bool:
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            return False
+        return not (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        )
+
+    # Literal IP host — check directly (no DNS).
+    try:
+        ipaddress.ip_address(host)
+        return _ip_ok(host)
+    except ValueError:
+        pass
+
+    # Hostname — must resolve, and EVERY resolved address must be global.
+    try:
+        infos = socket.getaddrinfo(host, parts.port or None, proto=socket.IPPROTO_TCP)
+    except Exception:
+        return False
+    addrs = {info[4][0] for info in infos}
+    if not addrs:
+        return False
+    return all(_ip_ok(a) for a in addrs)
 
 # Domains that are never a first-party API reference — tutorials, content
 # farms, forums, and third-party "API" resellers. Not hard-dropped (sometimes
@@ -638,6 +774,122 @@ def _resolve_json_pointer(root: Any, pointer: str) -> Any:
             return None
     return node
 
+def _openapi_collect_schema_props(
+    schema: Any, spec: Dict[str, Any], out: Dict[str, str], depth: int = 0
+) -> None:
+    """Walk an OpenAPI request-body schema and collect its top-level property
+    names into ``out`` as ``{field: description}``. Resolves ``$ref`` and folds
+    ``allOf``/``oneOf``/``anyOf`` so refs-to-component-schemas (the common case)
+    actually yield their fields. Bounded depth so a cyclic spec can't loop."""
+    if not isinstance(schema, dict) or depth > 6:
+        return
+    if "$ref" in schema and isinstance(schema["$ref"], str):
+        schema = _resolve_json_pointer(spec, schema["$ref"]) or {}
+    for comb in ("allOf", "oneOf", "anyOf"):
+        for sub in schema.get(comb) or []:
+            _openapi_collect_schema_props(sub, spec, out, depth + 1)
+    # If it's an object with properties, harvest the field names.
+    props = schema.get("properties")
+    if isinstance(props, dict):
+        required = set(schema.get("required") or [])
+        for name, p in props.items():
+            if not isinstance(name, str) or name in out:
+                continue
+            desc = ""
+            if isinstance(p, dict):
+                desc = (p.get("description") or p.get("type") or "").strip()
+            if name in required:
+                desc = (desc + " (required)").strip()
+            out[name] = desc or "field"
+
+def _openapi_body_fields(op: Dict[str, Any], spec: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    """Extract the JSON request-body fields of an OpenAPI operation as
+    ``{field: description}`` (or None). This is what lets the planner/grounding
+    know which body fields a write endpoint actually accepts — without it every
+    spec-derived POST had an empty body and invalid fields slipped through."""
+    if not isinstance(op, dict):
+        return None
+    rb = op.get("requestBody")
+    if isinstance(rb, dict) and "$ref" in rb and isinstance(rb["$ref"], str):
+        rb = _resolve_json_pointer(spec, rb["$ref"])
+    if not isinstance(rb, dict):
+        return None
+    content = rb.get("content")
+    if not isinstance(content, dict):
+        return None
+    media = content.get("application/json") or next(
+        (v for v in content.values() if isinstance(v, dict)), None
+    )
+    if not isinstance(media, dict):
+        return None
+    fields: Dict[str, str] = {}
+    _openapi_collect_schema_props(media.get("schema"), spec, fields)
+    return fields or None
+
+def _oauth1_auth_header(
+    method: str,
+    url: str,
+    query_params: Optional[Dict[str, Any]],
+    *,
+    consumer_key: str,
+    consumer_secret: str,
+    token: str = "",
+    token_secret: str = "",
+) -> str:
+    """Build an OAuth 1.0a ``Authorization: OAuth …`` header (HMAC-SHA1).
+
+    Implemented with the stdlib only — no oauthlib dependency — so OAuth1
+    providers (Twitter v1.1, Trello, Tumblr, Garmin, …) accept the call. Signs
+    the request method + base URI + sorted oauth_*/query params per RFC 5849.
+    Body params are intentionally excluded: we only send JSON/no bodies, and
+    OAuth1 only folds *form-encoded* bodies into the signature base."""
+    import base64 as _b64
+    import hmac as _hmac
+    import hashlib as _hashlib
+    import secrets as _secrets
+    import time as _t
+    from urllib.parse import urlsplit, urlunsplit, parse_qsl, quote
+
+    def _q(s: Any) -> str:
+        # RFC 3986 percent-encoding (unreserved chars kept, incl. '~').
+        return quote(str(s), safe="~")
+
+    split = urlsplit(url)
+    base_uri = urlunsplit(
+        (split.scheme.lower(), split.netloc.lower(), split.path, "", "")
+    )
+
+    oauth_params: Dict[str, str] = {
+        "oauth_consumer_key": consumer_key,
+        "oauth_nonce": _secrets.token_hex(16),
+        "oauth_signature_method": "HMAC-SHA1",
+        "oauth_timestamp": str(int(_t.time())),
+        "oauth_version": "1.0",
+    }
+    if token:
+        oauth_params["oauth_token"] = token
+
+    # Everything that participates in the signature: oauth_* + query string +
+    # any caller-supplied query params, all percent-encoded then sorted.
+    sig_params: List[Tuple[str, str]] = [(_q(k), _q(v)) for k, v in oauth_params.items()]
+    for k, v in (query_params or {}).items():
+        sig_params.append((_q(k), _q(v)))
+    for k, v in parse_qsl(split.query, keep_blank_values=True):
+        sig_params.append((_q(k), _q(v)))
+    sig_params.sort()
+    param_string = "&".join(f"{k}={v}" for k, v in sig_params)
+
+    base_string = "&".join([method.upper(), _q(base_uri), _q(param_string)])
+    signing_key = f"{_q(consumer_secret)}&{_q(token_secret)}"
+    signature = _b64.b64encode(
+        _hmac.new(signing_key.encode(), base_string.encode(), _hashlib.sha1).digest()
+    ).decode()
+    oauth_params["oauth_signature"] = signature
+
+    return "OAuth " + ", ".join(
+        f'{_q(k)}="{_q(v)}"' for k, v in sorted(oauth_params.items())
+    )
+
 def _ollama_unreachable_hint(exc: Exception) -> str:
     """Actionable error for the most common Ollama-unreachable scenarios.
 
@@ -793,488 +1045,6 @@ def warmup_model(timeout: float = 60.0) -> bool:
         logger.warning(f"Ollama warmup failed (will load on first request): {exc}")
         return False
 
-# Built-in seed docs for the most common tools. Used so the agent can
-# answer the first request for these without first hitting the web — the
-# scrape path is the fallback. Anything not in this dict is fetched lazily.
-_SEED_TOOLS: Dict[str, Dict[str, Any]] = {
-    "github": {
-        "display_name": "GitHub",
-        "base_url": "https://api.github.com",
-        "auth_type": "BEARER",
-        "auth_config": {
-            "header_name": "Authorization",
-            "credential_prefix": "Bearer ",
-            "oauth_authorize_url": "https://github.com/login/oauth/authorize",
-            "oauth_token_url": "https://github.com/login/oauth/access_token",
-            "default_scopes": "repo,read:user",
-            "pat_create_url": "https://github.com/settings/tokens",
-            "setup_instructions": {
-                "intro": "GitHub uses a Personal Access Token (PAT). It takes ~30 seconds to create.",
-                "steps": [
-                    "Open https://github.com/settings/tokens (Settings → Developer settings → Personal access tokens → Tokens (classic)).",
-                    'Click "Generate new token" → "Generate new token (classic)".',
-                    'Set a note (e.g. "Dynamic Agent") and an expiration.',
-                    "Check the `repo` and `read:user` scopes (add more for write actions like creating issues).",
-                    'Click "Generate token" and copy it — starts with `ghp_…`. GitHub only shows it once.',
-                    "Paste it below.",
-                ],
-            },
-        },
-        "endpoints": {
-            "get_user": {"method": "GET", "path": "/user", "description": "Authenticated user profile"},
-            "list_repos": {"method": "GET", "path": "/user/repos", "description": "List your repositories"},
-            "list_issues": {"method": "GET", "path": "/issues", "description": "List issues across the user's repos"},
-            "create_issue": {
-                "method": "POST",
-                "path": "/repos/{owner}/{repo}/issues",
-                "description": "Create an issue in a repo",
-                "body": {"title": "string", "body": "string (optional)"},
-            },
-            "list_pull_requests": {"method": "GET", "path": "/repos/{owner}/{repo}/pulls", "description": "List PRs in a repo"},
-        },
-        "docs_url": "https://docs.github.com/en/rest",
-    },
-    "notion": {
-        "display_name": "Notion",
-        "base_url": "https://api.notion.com",
-        "auth_type": "BEARER",
-        "auth_config": {
-            "header_name": "Authorization",
-            "credential_prefix": "Bearer ",
-            "extra_headers": {"Notion-Version": "2022-06-28"},
-            "oauth_authorize_url": "https://api.notion.com/v1/oauth/authorize",
-            "oauth_token_url": "https://api.notion.com/v1/oauth/token",
-            "pat_create_url": "https://www.notion.so/my-integrations",
-            "setup_instructions": {
-                "intro": "Notion uses an Internal Integration Token. You also have to grant the integration access to every page/database you want it to read.",
-                "steps": [
-                    "Open https://www.notion.so/my-integrations.",
-                    'Click "+ New integration", give it a name, pick your workspace, leave the type as "Internal".',
-                    'Submit, then on the integration page copy the "Internal Integration Secret" — starts with `secret_…` or `ntn_…`.',
-                    "In Notion, open every page/database you want the agent to access. Click `…` (top-right) → `Connections` → select your integration. Child pages inherit access.",
-                    "Paste the token below.",
-                ],
-            },
-        },
-        "endpoints": {
-            "list_users": {"method": "GET", "path": "/v1/users", "description": "List workspace users"},
-            "search": {"method": "POST", "path": "/v1/search", "description": "Search pages / databases", "body": {"query": "string"}},
-            "create_page": {"method": "POST", "path": "/v1/pages", "description": "Create a page", "body": {"parent": "object", "properties": "object"}},
-        },
-        "docs_url": "https://developers.notion.com/reference",
-    },
-    "gmail": {
-        "display_name": "Gmail",
-        "base_url": "https://gmail.googleapis.com",
-        "auth_type": "BEARER",
-        "auth_config": {
-            "header_name": "Authorization",
-            "credential_prefix": "Bearer ",
-            "oauth_authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
-            "oauth_token_url": "https://oauth2.googleapis.com/token",
-            "default_scopes": (
-                "https://www.googleapis.com/auth/gmail.readonly "
-                "https://www.googleapis.com/auth/gmail.send"
-            ),
-            "pat_create_url": "https://developers.google.com/oauthplayground/",
-            "credential_field_overrides": {
-                "secret": {
-                    "label": "OAuth 2.0 Access Token",
-                    "placeholder": "ya29.… (1-hour-lived token from OAuth Playground)",
-                },
-            },
-            "setup_instructions": {
-                "intro": (
-                    "Gmail requires a Google OAuth 2.0 access token — Google does "
-                    "not let you generate a long-lived API key for user mail. "
-                    "The fastest path is Google's OAuth Playground, which mints "
-                    "you a 1-hour access token without having to register a full "
-                    "OAuth app. Re-run these steps when the token expires."
-                ),
-                "steps": [
-                    "Open https://developers.google.com/oauthplayground/.",
-                    'In the left "Step 1" panel, scroll to "Gmail API v1" and check `https://www.googleapis.com/auth/gmail.readonly` (and `gmail.send` if you want to send mail).',
-                    'Click "Authorize APIs" → pick your Google account → "Allow".',
-                    'On "Step 2", click "Exchange authorization code for tokens".',
-                    "Copy the **Access token** (starts with `ya29.…`). It is valid for ~1 hour.",
-                    "Paste the access token below. Re-run these steps to refresh when calls start returning HTTP 401.",
-                ],
-            },
-        },
-        "quirks": [
-            "Paths are under /gmail/v1 — e.g. GET /gmail/v1/users/me/messages, "
-            "GET /gmail/v1/users/me/messages/{id}, POST /gmail/v1/users/me/messages/send. "
-            "Always use 'me' as the userId for the authenticated user.",
-            "List endpoints accept ?maxResults=N&q=<query> where q uses Gmail "
-            "search syntax (e.g. q=is:unread, q=from:foo@example.com).",
-            "Sending requires a raw base64url-encoded RFC 2822 message in "
-            "body.raw — this is fiddly; prefer reading/searching for now.",
-        ],
-        "endpoints": {
-            "profile": {
-                "method": "GET",
-                "path": "/gmail/v1/users/me/profile",
-                "description": "The authenticated user's email address + counts",
-            },
-            "list_messages": {
-                "method": "GET",
-                "path": "/gmail/v1/users/me/messages",
-                "description": "List message ids in the user's mailbox",
-                "params": {
-                    "maxResults": "integer (default 100)",
-                    "q": "Gmail search query (e.g. 'is:unread', 'from:x@y.com')",
-                    "labelIds": "comma-separated label ids",
-                },
-            },
-            "get_message": {
-                "method": "GET",
-                "path": "/gmail/v1/users/me/messages/{id}",
-                "description": "Get one message by id (use after list_messages)",
-            },
-            "list_labels": {
-                "method": "GET",
-                "path": "/gmail/v1/users/me/labels",
-                "description": "List the user's labels (inbox / starred / custom)",
-            },
-        },
-        "docs_url": "https://developers.google.com/gmail/api/reference/rest",
-    },
-    "openai": {
-        "display_name": "OpenAI",
-        "base_url": "https://api.openai.com",
-        "auth_type": "BEARER",
-        "auth_config": {
-            "header_name": "Authorization",
-            "credential_prefix": "Bearer ",
-            "pat_create_url": "https://platform.openai.com/api-keys",
-            "setup_instructions": {
-                "intro": "OpenAI uses a secret API key tied to your platform account. You need a paid account (or a free-trial account with usage credits) for most endpoints to work.",
-                "steps": [
-                    "Open https://platform.openai.com/api-keys.",
-                    'Click "Create new secret key".',
-                    "Give it a name (optional), pick a project, then click Create.",
-                    "Copy the key — starts with `sk-…`. OpenAI only shows it once; if you lose it you have to make a new one.",
-                    "Paste it below.",
-                ],
-            },
-        },
-        "endpoints": {
-            "list_models": {"method": "GET", "path": "/v1/models", "description": "List available models"},
-            "chat_completion": {
-                "method": "POST",
-                "path": "/v1/chat/completions",
-                "description": "Chat completion",
-                "body": {"model": "string", "messages": "array"},
-            },
-        },
-        "docs_url": "https://platform.openai.com/docs/api-reference",
-    },
-    "slack": {
-        "display_name": "Slack",
-        "base_url": "https://slack.com",
-        "auth_type": "BEARER",
-        "auth_config": {
-            "header_name": "Authorization",
-            "credential_prefix": "Bearer ",
-            "oauth_authorize_url": "https://slack.com/oauth/v2/authorize",
-            "oauth_token_url": "https://slack.com/api/oauth.v2.access",
-            "default_scopes": "channels:read,groups:read,im:read,mpim:read,chat:write,users:read",
-            "pat_create_url": "https://api.slack.com/apps",
-            "credential_field_overrides": {
-                "secret": {
-                    "label": "Bot User OAuth Token",
-                    "placeholder": (
-                        "xoxb-…  (Slack app → OAuth & Permissions → Bot User OAuth Token). "
-                        "Required scopes: channels:read, groups:read, im:read, "
-                        "mpim:read, chat:write, users:read"
-                    ),
-                },
-            },
-            "setup_instructions": {
-                "intro": (
-                    "Slack auth requires creating a Slack App in your workspace, "
-                    "adding bot scopes, installing the app, and copying the Bot "
-                    "User OAuth Token. THE TOKEN MUST START WITH `xoxb-` — a "
-                    "`xoxp-` (user) or `xapp-` (app-level) token will be "
-                    "rejected by the agent."
-                ),
-                "steps": [
-                    "Open https://api.slack.com/apps.",
-                    'Click "Create New App" → "From scratch", give it a name, pick your workspace, Create.',
-                    'In the left sidebar click "OAuth & Permissions".',
-                    'Scroll to "Bot Token Scopes" and click "Add an OAuth Scope". Add all of: channels:read, groups:read, im:read, mpim:read, chat:write, users:read. (You can add more later.)',
-                    'Scroll to the top of the same page, click "Install to Workspace" (or "Reinstall to Workspace" if you already installed it). Authorize.',
-                    'Under "OAuth Tokens for Your Workspace" copy the value labelled **Bot User OAuth Token** — it starts with `xoxb-…`. Do NOT copy the User OAuth Token (xoxp-) or App-Level Token (xapp-).',
-                    "Paste the xoxb-… token below.",
-                ],
-            },
-        },
-        "quirks": [
-            "Slack returns HTTP 200 even on failure — errors show up as "
-            "{\"ok\": false, \"error\": \"<code>\"} in the body. The agent "
-            "translates these into proper failures automatically.",
-            "Common error codes the user needs to fix in the Slack app: "
-            "`missing_scope` (add the scope under OAuth & Permissions, "
-            "then REINSTALL the app to the workspace), "
-            "`not_in_channel` (invite the bot to the channel first), "
-            "`invalid_auth` (token wrong or revoked).",
-        ],
-        "endpoints": {
-            "auth_test": {"method": "GET", "path": "/api/auth.test", "description": "Verify the token"},
-            "list_channels": {"method": "GET", "path": "/api/conversations.list", "description": "List channels"},
-            "post_message": {
-                "method": "POST",
-                "path": "/api/chat.postMessage",
-                "description": "Send a message to a channel",
-                "body": {"channel": "string (channel id or name)", "text": "string"},
-            },
-            "list_users": {"method": "GET", "path": "/api/users.list", "description": "List workspace users"},
-        },
-        "docs_url": "https://api.slack.com/web",
-    },
-    # Razorpay uses HTTP Basic auth with key_id as the username and the
-    # API key secret as the password — NOT Bearer. Easy to get wrong
-    # because the docs call them "API Key ID / Secret".
-    "razorpay": {
-        "display_name": "Razorpay",
-        "base_url": "https://api.razorpay.com",
-        "auth_type": "BASIC",
-        "auth_config": {
-            "pat_create_url": "https://dashboard.razorpay.com/app/keys",
-            # The frontend renders these instead of generic Username/Password
-            # so the user sees the labels Razorpay actually uses.
-            "credential_field_overrides": {
-                "username": {"label": "Key ID", "placeholder": "rzp_test_… or rzp_live_…"},
-                "password": {"label": "Key Secret", "placeholder": "The secret shown when you created the key"},
-            },
-            "setup_instructions": {
-                "intro": "Razorpay uses HTTP Basic auth with two values you generate from the dashboard. Use Test mode keys (rzp_test_…) while building — they don't move real money.",
-                "steps": [
-                    "Open https://dashboard.razorpay.com/app/keys.",
-                    'Toggle to "Test Mode" (top-right) if you only want to experiment.',
-                    'Click "Generate Test Key" (or "Generate Live Key" if you want real transactions).',
-                    "A modal pops up with **Key ID** (rzp_test_… / rzp_live_…) and **Key Secret**. Copy BOTH — the Key Secret is shown only once.",
-                    "Paste Key ID and Key Secret in the matching fields below.",
-                ],
-            },
-        },
-        # Provider-specific gotchas the action planner MUST follow. Fed into
-        # the planner's system prompt so the 3B model doesn't have to
-        # remember them on its own.
-        "quirks": [
-            "Amounts are integers in PAISE (1 INR = 100 paise). "
-            "Formula: amount_paise = rupees * 100. "
-            "Examples: 1 INR = 100, 10 INR = 1000, 50 INR = 5000, 100 INR = 10000, 500 INR = 50000. "
-            "NEVER send the rupee value directly. NEVER copy an example amount — always compute from the user's number.",
-            "Currency must be the 3-letter ISO code (e.g. \"INR\"), not a symbol.",
-            "For create_payment_link, the response field `short_url` is the "
-            "public URL to share.",
-        ],
-        "endpoints": {
-            "list_payments": {"method": "GET", "path": "/v1/payments", "description": "Recent payments"},
-            "list_payment_links": {"method": "GET", "path": "/v1/payment_links", "description": "Recent payment links"},
-            "list_orders": {"method": "GET", "path": "/v1/orders", "description": "Recent orders"},
-            "create_order": {
-                "method": "POST",
-                "path": "/v1/orders",
-                "description": "Create an order. amount = rupees * 100 (paise). 10 INR → 1000, 50 INR → 5000, 500 INR → 50000.",
-                "body": {"amount": "integer paise = rupees*100", "currency": "INR", "receipt": "string"},
-            },
-            "create_payment_link": {
-                "method": "POST",
-                "path": "/v1/payment_links",
-                "description": "Create a shareable payment link. amount = rupees * 100 (paise). 10 INR → 1000, 50 INR → 5000, 500 INR → 50000.",
-                "body": {
-                    "amount": "integer paise = rupees*100",
-                    "currency": "INR",
-                    "description": "string",
-                    "customer": "object with name/email/contact",
-                },
-            },
-        },
-        "docs_url": "https://razorpay.com/docs/api/",
-    },
-    "stripe": {
-        "display_name": "Stripe",
-        "base_url": "https://api.stripe.com",
-        "auth_type": "BEARER",
-        "auth_config": {
-            "header_name": "Authorization",
-            "credential_prefix": "Bearer ",
-            "pat_create_url": "https://dashboard.stripe.com/apikeys",
-            "credential_field_overrides": {
-                "secret": {
-                    "label": "Secret Key",
-                    "placeholder": "sk_test_… or sk_live_…",
-                },
-            },
-            "setup_instructions": {
-                "intro": "Stripe uses a Secret Key from your Stripe dashboard. Use the Test mode key (sk_test_…) while building so you don't accidentally charge live cards.",
-                "steps": [
-                    "Open https://dashboard.stripe.com/apikeys.",
-                    'In the top-right of the dashboard, make sure the "Test mode" toggle is ON (it shows an orange/yellow banner).',
-                    'In the "Standard keys" section, click "Reveal test key" next to "Secret key".',
-                    "Copy the value — it starts with `sk_test_…`. (For real payments later, do the same in Live mode for an `sk_live_…` key.)",
-                    "Paste it below.",
-                ],
-            },
-        },
-        "quirks": [
-            "Amounts are INTEGERS in the smallest currency unit. For USD/EUR "
-            "that's cents — $5 → 500. For zero-decimal currencies (JPY, KRW) "
-            "send the value as-is. Never send a decimal.",
-            "Write endpoints use application/x-www-form-urlencoded, not JSON. "
-            "Pass values under `body` and the agent will form-encode them.",
-        ],
-        "endpoints": {
-            "list_charges": {"method": "GET", "path": "/v1/charges", "description": "List charges"},
-            "list_customers": {"method": "GET", "path": "/v1/customers", "description": "List customers"},
-            "list_payment_intents": {"method": "GET", "path": "/v1/payment_intents", "description": "List payment intents"},
-        },
-        "docs_url": "https://stripe.com/docs/api",
-    },
-    # AWS is NOT a generic REST API — every service has its own endpoint
-    # (ec2.<region>.amazonaws.com, s3.amazonaws.com, …) and authentication
-    # uses AWS Signature V4. We route everything through boto3 instead of
-    # trying to sign requests manually. The "endpoint" the planner emits
-    # is "<service>/<operation>" (e.g. "ec2/describe_instances") and
-    # "body" / "params" become the kwargs passed to the boto3 client call.
-    "aws": {
-        "display_name": "AWS",
-        "base_url": "boto3://",  # marker — never used as a URL
-        "auth_type": "AWS_SIGV4",
-        "auth_config": {
-            "pat_create_url": "https://console.aws.amazon.com/iam/home#/security_credentials",
-            "default_region": "us-east-1",
-            "credential_field_overrides": {
-                "access_key_id": {
-                    "label": "AWS Access Key ID",
-                    "placeholder": "AKIA…",
-                },
-                "secret_access_key": {
-                    "label": "AWS Secret Access Key",
-                    "placeholder": "(40-char base64-ish string)",
-                },
-                "region": {
-                    "label": "Default Region",
-                    "placeholder": "us-east-1",
-                },
-            },
-            "setup_instructions": {
-                "intro": (
-                    "AWS needs an Access Key ID + Secret Access Key tied to "
-                    "an IAM user (NOT your root account). The agent dispatches "
-                    "calls through boto3, so anything the IAM user is allowed "
-                    "to do in the console is allowed here."
-                ),
-                "steps": [
-                    "Open https://console.aws.amazon.com/iam/home#/users — create a fresh IAM user if you don't already have one for programmatic access.",
-                    "Click the user → Security credentials tab → Access keys → \"Create access key\".",
-                    'For "Use case" pick "Other" (or "Application running outside AWS"), click Next, Create.',
-                    "Copy BOTH values: **Access Key ID** (starts with `AKIA…`) and **Secret Access Key** (long base64-ish string). Secret Access Key is shown ONLY once — download the CSV if you might lose it.",
-                    "Pick a default Region — `us-east-1` is the safest default. Use `ap-south-1` if you're in India and your resources are in Mumbai.",
-                    "Paste the Key ID, Secret Key, and Region below. The agent will smoke-test with sts:GetCallerIdentity (needs no permissions) before saving.",
-                ],
-            },
-        },
-        "quirks": [
-            "AWS is dispatched via boto3, not raw HTTP. The `endpoint` you "
-            "emit MUST be of the form \"<service>/<operation>\" (lowercase "
-            "service, snake_case operation). Examples: "
-            "\"ec2/describe_instances\", \"s3/list_buckets\", "
-            "\"s3/create_bucket\", \"rds/describe_db_instances\", "
-            "\"lambda/list_functions\", \"iam/list_users\", "
-            "\"sts/get_caller_identity\".",
-            "Method is always \"POST\" (the agent ignores it for AWS).",
-            "`body` holds the boto3 kwargs (e.g. {\"InstanceIds\": [\"i-…\"]}). "
-            "Use PascalCase keys exactly as the boto3 docs say.",
-            "Never invent IDs (instance ids, bucket names) the user didn't "
-            "supply — leave the kwarg out if missing.",
-            "S3 create_bucket region rule: if the connection region is "
-            "us-east-1, send ONLY {\"Bucket\": name} — DO NOT include "
-            "CreateBucketConfiguration. If the region is anything else, "
-            "include CreateBucketConfiguration={\"LocationConstraint\": "
-            "<region>}. The agent will auto-fix this if you get it wrong, "
-            "but try to get it right.",
-        ],
-        "endpoints": {
-            "whoami": {
-                "method": "POST",
-                "path": "sts/get_caller_identity",
-                "description": "Verify the IAM identity behind the credentials",
-            },
-            "list_ec2_instances": {
-                "method": "POST",
-                "path": "ec2/describe_instances",
-                "description": "List EC2 instances in the configured region",
-            },
-            "list_s3_buckets": {
-                "method": "POST",
-                "path": "s3/list_buckets",
-                "description": "List all S3 buckets in the account",
-            },
-            "create_s3_bucket": {
-                "method": "POST",
-                "path": "s3/create_bucket",
-                "description": (
-                    "Create an S3 bucket. body={\"Bucket\": name}. The "
-                    "agent auto-attaches CreateBucketConfiguration based on "
-                    "the connection region — don't add it yourself."
-                ),
-                "body": {"Bucket": "string (globally unique)"},
-            },
-            "list_rds_instances": {
-                "method": "POST",
-                "path": "rds/describe_db_instances",
-                "description": "List RDS database instances",
-            },
-            "list_lambda_functions": {
-                "method": "POST",
-                "path": "lambda/list_functions",
-                "description": "List Lambda functions",
-            },
-            "list_iam_users": {
-                "method": "POST",
-                "path": "iam/list_users",
-                "description": "List IAM users",
-            },
-        },
-        "docs_url": "https://boto3.amazonaws.com/v1/documentation/api/latest/index.html",
-    },
-    "linear": {
-        "display_name": "Linear",
-        "base_url": "https://api.linear.app",
-        "auth_type": "API_KEY",
-        "auth_config": {
-            "header_name": "Authorization",
-            # Linear's docs say the bare key OR "Bearer <key>" both work.
-            # Default to no prefix so a personal API key (lin_api_…) just
-            # gets sent verbatim.
-            "credential_prefix": "",
-            "pat_create_url": "https://linear.app/settings/api",
-            "setup_instructions": {
-                "intro": "Linear uses a Personal API Key tied to your user account. The key inherits your Linear permissions — only data you can see in the app is reachable via the API.",
-                "steps": [
-                    "Open https://linear.app/settings/api (Settings → API → Personal API keys).",
-                    'Click "Create new API key".',
-                    'Give it a label (e.g. "Dynamic Agent") and click Create.',
-                    "Copy the key — starts with `lin_api_…`. Linear shows it only once.",
-                    "Paste it below.",
-                ],
-            },
-        },
-        "endpoints": {
-            "graphql": {
-                "method": "POST",
-                "path": "/graphql",
-                "description": "GraphQL endpoint — body is {query, variables}",
-                "body": {"query": "string", "variables": "object"},
-            },
-        },
-        "docs_url": "https://developers.linear.app/docs",
-    },
-}
-
 class DynamicAgentError(Exception):
     """Raised for caller-visible errors so route handlers can map to HTTP."""
 
@@ -1293,18 +1063,19 @@ class DynamicAgentService:
                 _TOOL_IDENTIFY_SYSTEM,
                 f"User prompt: {prompt!r}\n\nReturn the JSON envelope.",
                 temperature=0.0,
-                # Output is a tiny 4-field JSON, so cap generation short.
+                # Output is a tiny 5-field JSON, so cap generation short.
                 # IMPORTANT: keep num_ctx at the shared default — changing
                 # num_ctx between calls forces Ollama to reload the model
                 # (a ~30s cold load), which would defeat keep_alive. Every
                 # call in a turn must use the SAME num_ctx to stay warm.
-                num_predict=96,
+                num_predict=128,
             )
         except Exception as exc:
             logger.warning(f"identify_tool: LLM failed: {exc}")
             return {
                 "tool": None,
                 "intent": "ambiguous",
+                "wants_doc_import": False,
                 "confidence": 0.0,
                 "reason": f"LLM error: {exc}",
             }
@@ -1335,19 +1106,12 @@ class DynamicAgentService:
         force_refresh: bool = False,
         status_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
     ) -> Optional[ToolDefinition]:
-        """DB cache first, then seed, then web search + LLM extract.
+        """DB cache first, then web search + LLM extract from fetched docs.
 
-        Seed upgrade: if a tool has trusted seed data and the cached row
-        was previously generated by the LLM (likely with a wrong auth_type
-        — see the Razorpay "OAuth bad token" bug), overwrite it with the
-        seed. Forces every existing user to pick up the fix without having
-        to click Refresh manually.
-
-        When ``force_refresh=True`` on a seed tool, we re-apply the seed
-        (not go to the web): seeds are hand-curated code, not a remote
-        resource we can usefully re-pull. AWS in particular has no single
-        REST surface so web extraction returns nothing — refreshing it
-        used to 404.
+        Everything is derived from documents we actually fetch: there are no
+        seeds, no templated host guesses, and no LLM training-data fallback.
+        If the web search can't surface a usable doc/spec for the tool, this
+        returns None.
 
         ``status_callback(step, data)`` is called at each major stage so the
         streaming refresh endpoint can surface progress to the user."""
@@ -1364,221 +1128,31 @@ class DynamicAgentService:
             .filter(ToolDefinition.name == tool_name)
             .first()
         )
-        is_seed = tool_name in _SEED_TOOLS
-        _emit("starting", {"tool": tool_name, "force_refresh": force_refresh, "is_seed": is_seed})
+        _emit("starting", {"tool": tool_name, "force_refresh": force_refresh})
 
-        # If the tool has a seed entry, the in-memory seed is the source
-        # of truth — fall through to the seed branch so any code-level
-        # update (new quirk, new endpoint, fixed auth_type) propagates to
-        # every user without a manual refresh. The seed branch UPDATEs the
-        # existing row in place, so there's no INSERT conflict on `name`.
-        if row and not force_refresh and not is_seed:
+        if row and not force_refresh:
             _emit("cache_hit", {"source": row.source})
             return row
 
-        # Seed branch — triggered on FIRST LOAD (cache-miss) of a seed tool.
-        # On force_refresh we skip this block and go straight to web extraction
-        # so the refresh always pulls fresh data from the internet.
-        if is_seed and not force_refresh:
-            data = _SEED_TOOLS[tool_name]
-            seed_endpoints = dict(data["endpoints"])
-            merged_endpoints: Dict[str, Any] = dict(seed_endpoints)
-            merged_rate_limits: Optional[Dict[str, Any]] = None
-            merged_examples: Optional[List[Dict[str, Any]]] = None
-            merged_docs_url: Optional[str] = data.get("docs_url")
-
-            # Cache hit: row already matches the seed exactly, so skip the
-            # write entirely. Without this check we'd UPDATE+commit this row
-            # on every single call (including the no-LLM fast path), which
-            # serializes concurrent requests against the same row and is
-            # what caused intermittent multi-second/timeout stalls under
-            # concurrent MCP calls.
-            if (
-                row
-                and row.source == "seed"
-                and row.display_name == data["display_name"]
-                and row.base_url == data["base_url"]
-                and row.auth_type == data["auth_type"]
-                and row.auth_config == data["auth_config"]
-                and row.endpoints == merged_endpoints
-                and row.rate_limits == merged_rate_limits
-                and row.examples == merged_examples
-                and row.docs_url == merged_docs_url
-            ):
-                _emit("cache_hit", {"source": "seed"})
-                return row
-
-            _emit("applying_seed", {"tool": tool_name})
-            if row:
-                row.display_name = data["display_name"]
-                row.base_url = data["base_url"]
-                row.auth_type = data["auth_type"]
-                row.auth_config = data["auth_config"]
-                row.endpoints = merged_endpoints
-                row.rate_limits = merged_rate_limits
-                row.examples = merged_examples
-                row.docs_url = merged_docs_url
-                row.source = "seed"
-                row.last_fetched_at = datetime.utcnow()
-            else:
-                row = ToolDefinition(
-                    name=tool_name,
-                    display_name=data["display_name"],
-                    base_url=data["base_url"],
-                    auth_type=data["auth_type"],
-                    auth_config=data["auth_config"],
-                    endpoints=merged_endpoints,
-                    rate_limits=merged_rate_limits,
-                    examples=merged_examples,
-                    docs_url=merged_docs_url,
-                    source="seed",
-                )
-                db.add(row)
-            db.commit()
-            db.refresh(row)
-            _emit(
-                "saved",
-                {
-                    "endpoint_count": len(row.endpoints or {}),
-                    "auth_type": row.auth_type,
-                    "source": "seed",
-                    "has_rate_limits": row.rate_limits is not None,
-                    "examples_count": len(row.examples or []),
-                },
-            )
-            return row
-
-        # Web search + LLM extract — runs for ALL tools on force_refresh,
-        # and for non-seed tools on first load.
-        # For seed tools on force_refresh: web is PRIMARY. Seed is merged in
-        # afterwards as a fallback so auth_config / quirks are never lost.
-        # For AWS: also run local boto3 introspection before the merge.
-        seed_data = _SEED_TOOLS.get(tool_name) if is_seed else None
-
+        # Web search + LLM extract — runs on first load and on force_refresh.
         try:
             extracted = self._extract_docs_from_web(
                 tool_name,
                 status_callback=status_callback,
-                base_url_hint=(seed_data or {}).get("base_url"),
-                docs_url_hint=(seed_data or {}).get("docs_url"),
             )
         except Exception as exc:
             logger.exception(f"docs extraction failed for {tool_name}")
             _emit("error", {"reason": f"extraction failed: {exc}"})
             extracted = None
 
-        # Fallback chain when web extraction is missing OR thin:
-        #   1. LLM training-data knowledge (works for ANY well-known tool)
-        #   2. Seed data (only for the handful of hand-curated tools)
-        #
-        # We trigger this not only when base_url is absent, but also when the
-        # web pages yielded NO endpoints, or only bare "API_KEY" auth with no
-        # config. That's the common failure for JS-heavy / spec-less docs (e.g.
-        # LinkedIn) where the small extractor can't read prose — yet the model
-        # usually KNOWS these well-known APIs (endpoints + the real OAuth URLs).
-        # So we MERGE the model's knowledge in: the web's validated base_url
-        # wins, but endpoints / auth are filled from LLM knowledge when the web
-        # result is thin.
-        web_eps = (extracted or {}).get("endpoints") or {}
-        web_auth = ((extracted or {}).get("auth_type") or "").upper()
-        web_authcfg = (extracted or {}).get("auth_config") or {}
-        # Does the web's base_url host actually belong to this tool? Catches the
-        # model hallucinating a real-but-wrong host (api.github.com for
-        # 'linkedin'). An untrusted host is treated exactly like a missing one.
-        base_trusted = bool((extracted or {}).get("base_url")) and _host_relates_to_tool(
-            (extracted or {}).get("base_url"), tool_name, (extracted or {}).get("docs_url")
-        )
-        needs_help = (
-            not extracted
-            or not extracted.get("base_url")
-            or not base_trusted
-            or not web_eps
-            or (web_auth in ("", "API_KEY") and not web_authcfg)
-        )
-        if needs_help:
-            _emit("llm_knowledge_fallback", {"tool": tool_name, "base_trusted": base_trusted})
-            llm_known = self._extract_from_llm_knowledge(tool_name)
-            llm_ok = bool(
-                llm_known
-                and llm_known.get("base_url")
-                and not _is_placeholder_url(llm_known.get("base_url"))
-            )
+        # No fallbacks: if web extraction couldn't surface a usable base_url
+        # from real fetched docs, there's nothing actionable to save.
+        if not extracted or not extracted.get("base_url"):
+            _emit("error", {"reason": "no usable docs found on the web for this tool"})
+            return None
 
-            if not extracted or not extracted.get("base_url") or not base_trusted:
-                # Web gave nothing usable (or a host that doesn't belong to this
-                # tool) — take LLM knowledge wholesale, else seed, else give up.
-                if llm_ok:
-                    extracted = llm_known
-                    _emit("llm_knowledge_used", {"base_url": llm_known.get("base_url"), "endpoints": len(llm_known.get("endpoints") or {})})
-                elif seed_data:
-                    _emit("seed_fallback", {"reason": "web + LLM knowledge both failed"})
-                    extracted = {
-                        "base_url": seed_data["base_url"],
-                        "auth_type": seed_data["auth_type"],
-                        "auth_config": seed_data["auth_config"],
-                        "endpoints": dict(seed_data["endpoints"]),
-                        "docs_url": seed_data.get("docs_url"),
-                    }
-                else:
-                    _emit("error", {"reason": "no usable docs found — web search and LLM knowledge both failed"})
-                    return None
-            elif llm_ok:
-                # Web gave a valid base_url but the result is THIN. Merge the
-                # model's knowledge to fill gaps; web wins on overlap so any
-                # fresh live data is preserved.
-                merged_eps = dict(llm_known.get("endpoints") or {})
-                merged_eps.update(web_eps)  # web endpoints win on key conflict
-                if merged_eps:
-                    extracted["endpoints"] = merged_eps
-                # Bare/generic auth + no config → trust the model's richer auth
-                # (often the correct OAUTH2 + authorize/token URLs).
-                if web_auth in ("", "API_KEY") and not web_authcfg:
-                    if llm_known.get("auth_type"):
-                        extracted["auth_type"] = llm_known["auth_type"]
-                    if llm_known.get("auth_config"):
-                        extracted["auth_config"] = llm_known["auth_config"]
-                if not extracted.get("docs_url") and llm_known.get("docs_url"):
-                    extracted["docs_url"] = llm_known["docs_url"]
-                _emit("llm_knowledge_merged", {
-                    "endpoints": len(extracted.get("endpoints") or {}),
-                    "auth_type": extracted.get("auth_type"),
-                })
-            # else: web has a valid base_url but the LLM fallback also failed —
-            # keep the thin web extraction; a real base_url still beats nothing.
-
-        # For seed tools: merge seed endpoints + auth_config UNDER web data
-        # (web wins on conflict). This preserves curated quirks (AWS dispatch
-        # paths, Razorpay BASIC auth, etc.) without clobbering fresh web data.
-        if seed_data:
-            # Seed endpoints go in first as the base; web endpoints are merged
-            # on top so that new/updated paths from the live docs win.
-            merged_eps: Dict[str, Any] = dict(seed_data["endpoints"])
-            self._merge_endpoints_into(merged_eps, extracted.get("endpoints") or {})
-            extracted["endpoints"] = merged_eps
-            # Seed auth_config has curated fields the LLM often misses
-            # (setup_instructions, credential_field_overrides, quirks). Merge
-            # seed UNDER web so the web can override but never lose the seed fields.
-            seed_auth = dict(seed_data.get("auth_config") or {})
-            seed_auth.update(extracted.get("auth_config") or {})
-            extracted["auth_config"] = seed_auth
-            # auth_type from seed is authoritative when web returns something
-            # generic like "API_KEY" for a tool we know uses BASIC (Razorpay).
-            if not extracted.get("auth_type") or extracted["auth_type"] == "API_KEY":
-                extracted["auth_type"] = seed_data["auth_type"]
-
-        # AWS: enrich with local boto3 introspection (free, ~80 extra operations).
-        if tool_name == "aws" and seed_data:
-            _emit("introspecting", {"source": "boto3"})
-            aws_eps = self._introspect_aws_endpoints()
-            added = self._merge_endpoints_into(extracted["endpoints"], aws_eps)
-            _emit("introspected", {"total": len(aws_eps), "added": added})
-
-        source = "web+seed" if seed_data else "web"
-        display_name = (
-            (seed_data or {}).get("display_name")
-            or extracted.get("display_name")
-            or tool_name.title()
-        )
+        source = "web"
+        display_name = extracted.get("display_name") or tool_name.title()
 
         if row:
             row.display_name = display_name
@@ -1588,6 +1162,7 @@ class DynamicAgentService:
             row.endpoints = extracted.get("endpoints") or {}
             row.rate_limits = extracted.get("rate_limits")
             row.examples = extracted.get("examples")
+            row.quirks = extracted.get("quirks")
             row.docs_url = extracted.get("docs_url")
             row.source = source
             row.last_fetched_at = datetime.utcnow()
@@ -1601,6 +1176,7 @@ class DynamicAgentService:
                 endpoints=extracted.get("endpoints") or {},
                 rate_limits=extracted.get("rate_limits"),
                 examples=extracted.get("examples"),
+                quirks=extracted.get("quirks"),
                 docs_url=extracted.get("docs_url"),
                 source=source,
             )
@@ -1629,6 +1205,7 @@ class DynamicAgentService:
                 endpoints=extracted.get("endpoints") or {},
                 rate_limits=extracted.get("rate_limits"),
                 examples=extracted.get("examples"),
+                quirks=extracted.get("quirks"),
                 docs_url=extracted.get("docs_url"),
                 source=source,
             )
@@ -1776,12 +1353,18 @@ class DynamicAgentService:
         user: str,
         *,
         num_predict: int = 8192,
+        num_ctx: int = 32768,
         db: Optional[Session] = None,
         user_id: Optional[int] = None,
         status_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
     ) -> Dict[str, Any]:
         """Extract a JSON envelope, preferring a configured paid model (Claude/
-        GPT) for accuracy and falling back to the local 3B model otherwise.
+        GPT) for accuracy and falling back to the local LLM otherwise.
+
+        ``num_ctx`` only affects the local fallback. Doc extraction wants a big
+        window (32768) for large doc chunks, but callers on the hot path (e.g.
+        planning) MUST pass the shared 4096 default — a different num_ctx forces
+        Ollama to reload the model, which stalls back-to-back calls.
 
         When no paid key is available we emit a one-time ``model_warning`` so
         the UI can tell the user 'using the local model — add a Claude/OpenAI
@@ -1828,7 +1411,107 @@ class DynamicAgentService:
                           "model. Add a key on the dashboard for higher accuracy "
                           "on complex docs.",
             })
-        return _ollama_chat_json(system, user, temperature=0.0, num_predict=num_predict, num_ctx=32768)
+        return _ollama_chat_json(
+            system, user, temperature=0.0, num_predict=num_predict, num_ctx=num_ctx
+        )
+
+    @staticmethod
+    def _merge_endpoint_def(existing: Any, new: Any) -> Dict[str, Any]:
+        """Merge two extracted definitions of the SAME endpoint, keeping the
+        richer of each part. Unions body/params field lists so a later chunk
+        that documents the request body isn't discarded just because an earlier
+        chunk mentioned the endpoint first."""
+        if not isinstance(existing, dict):
+            return new if isinstance(new, dict) else {}
+        if not isinstance(new, dict):
+            return existing
+        out = dict(existing)
+        for key in ("method", "path", "description"):
+            if not out.get(key) and new.get(key):
+                out[key] = new[key]
+        for key in ("body", "params"):
+            ev, nv = out.get(key), new.get(key)
+            if isinstance(ev, dict) and isinstance(nv, dict):
+                out[key] = {**nv, **ev}  # union; existing descriptions win
+            elif not ev and nv:
+                out[key] = nv
+        return out
+
+    def _extract_credential_labels(
+        self,
+        tool_name: str,
+        auth_type: str,
+        doc_snippet: str,
+        db: Optional[Session] = None,
+        user_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Focused second pass to get the provider's REAL credential names.
+
+        The big extraction prompt often skips credential_field_overrides on a
+        small local model, leaving the UI showing generic 'Username/Password'.
+        This narrow question ("what does this provider call its credentials?")
+        is something even a 7B answers reliably. Returns a
+        credential_field_overrides dict (possibly empty)."""
+        at = (auth_type or "").upper()
+        if at == "BASIC":
+            fields, shape = (
+                '"username" and "password"',
+                '{"username": {"label": "..."}, "password": {"label": "..."}}',
+            )
+        elif at in ("API_KEY", "BEARER", "PAT"):
+            fields, shape = '"secret"', '{"secret": {"label": "..."}}'
+        else:
+            return {}
+        system = (
+            "You name API credential fields. Given an API and a doc snippet, "
+            "return the EXACT human-facing names the provider uses for its "
+            "credentials (as shown in its dashboard) so a form doesn't show a "
+            "generic 'Username/Password'. Return STRICT JSON only, no prose."
+        )
+        user = (
+            f"API: {tool_name}\nAuth type: {at}\nFields to label: {fields}\n\n"
+            f"DOC SNIPPET:\n{(doc_snippet or '')[:6000]}\n\n"
+            f"Return JSON of shape {shape}. Use the provider's real names "
+            f"(examples: Razorpay -> Key ID / Key Secret; Twilio -> Account SID "
+            f"/ Auth Token; Stripe -> Secret Key). If the docs genuinely use the "
+            f"literal words username/password, return {{}}."
+        )
+        try:
+            out = self._extract_json_smart(
+                system, user, num_predict=128, num_ctx=4096, db=db, user_id=user_id,
+            )
+        except Exception:
+            return {}
+        result: Dict[str, Any] = {}
+        if isinstance(out, dict):
+            for fname in ("username", "password", "secret"):
+                v = out.get(fname)
+                if isinstance(v, dict) and isinstance(v.get("label"), str) and v["label"].strip():
+                    result[fname] = {"label": v["label"].strip()}
+        return result
+
+    def _apply_credential_labels(
+        self,
+        extracted: Dict[str, Any],
+        tool_name: str,
+        doc_text: str,
+        db: Optional[Session] = None,
+        user_id: Optional[int] = None,
+    ) -> None:
+        """Ensure friendly credential labels exist. No-op if the main extraction
+        already set them, or the auth type doesn't take a pasted secret."""
+        at = (extracted.get("auth_type") or "").upper()
+        if at not in ("BASIC", "API_KEY", "BEARER", "PAT"):
+            return
+        cfg = extracted.get("auth_config") or {}
+        if cfg.get("credential_field_overrides"):
+            return
+        labels = self._extract_credential_labels(
+            tool_name, at, doc_text, db=db, user_id=user_id
+        )
+        if labels:
+            cfg["credential_field_overrides"] = labels
+            extracted["auth_config"] = cfg
 
     def _extract_from_doc_text(
         self,
@@ -1860,6 +1543,7 @@ class DynamicAgentService:
         base_url = auth_type = docs_url = None
         auth_config: Dict[str, Any] = {}
         rate_limits = examples = None
+        merged_quirks: List[str] = []
 
         for idx, ch in enumerate(chunks):
             _emit("llm_extracting", {"chunk": idx + 1, "of": len(chunks)})
@@ -1878,7 +1562,14 @@ class DynamicAgentService:
                 continue
             part = self._normalize_extracted_docs(part or {}, tool_name)
             for k, v in (part.get("endpoints") or {}).items():
-                merged_eps.setdefault(k, v)
+                # Prefer the RICHER definition. Bug fix: setdefault used to let
+                # an early chunk's bare mention (no body) block a later chunk's
+                # full schema — so write-endpoint bodies came back empty.
+                merged_eps[k] = (
+                    self._merge_endpoint_def(merged_eps[k], v)
+                    if k in merged_eps
+                    else v
+                )
             if not base_url and part.get("base_url") and not _is_placeholder_url(part["base_url"]):
                 base_url = part["base_url"]
             if (not auth_type or auth_type == "API_KEY") and part.get("auth_type"):
@@ -1891,10 +1582,13 @@ class DynamicAgentService:
                 rate_limits = part["rate_limits"]
             if not examples and part.get("examples"):
                 examples = part["examples"]
+            for q in (part.get("quirks") or []):
+                if q not in merged_quirks:
+                    merged_quirks.append(q)
 
         if not base_url and not merged_eps:
             return None
-        return {
+        result = {
             "display_name": tool_name.title(),
             "base_url": base_url,
             "auth_type": auth_type,
@@ -1903,7 +1597,12 @@ class DynamicAgentService:
             "docs_url": docs_url,
             "rate_limits": rate_limits,
             "examples": examples,
+            "quirks": merged_quirks or None,
         }
+        # Focused second pass so credential labels (Key ID / Key Secret, …) are
+        # reliable even when the big extraction skipped them on a small model.
+        self._apply_credential_labels(result, tool_name, text, db, user_id)
+        return result
 
     def import_tool_from_source(
         self,
@@ -1949,6 +1648,16 @@ class DynamicAgentService:
         raw_text: str = ""
         origin_url = source_url or (filename or "uploaded-file")
         if source_url:
+            # SSRF guard: we fetch this URL server-side, so block anything that
+            # isn't a public http(s) host (internal services, localhost, the
+            # cloud metadata endpoint, etc.).
+            if not _is_safe_public_url(source_url):
+                _emit("error", {
+                    "reason": "that link isn't an allowed public http(s) URL "
+                    "(internal / localhost / metadata addresses are blocked)"
+                })
+                logger.warning(f"blocked unsafe source_url for {tool_name}: {source_url!r}")
+                return None
             _emit("fetching_source", {"url": source_url})
             try:
                 resp = requests.get(
@@ -2054,6 +1763,7 @@ class DynamicAgentService:
             endpoints=extracted.get("endpoints") or {},
             rate_limits=extracted.get("rate_limits"),
             examples=extracted.get("examples"),
+            quirks=extracted.get("quirks"),
             docs_url=extracted.get("docs_url") or (source_url if source_url else None),
             source=source_label,
         )
@@ -2132,42 +1842,15 @@ class DynamicAgentService:
         if not merged_results:
             logger.info(f"no web results for {tool_name} docs")
 
-        # LLM-driven URL guessing — this is what makes refresh truly
-        # dynamic for tools like Jira, Twilio, Mailchimp where the spec
-        # URL is NOT discoverable by templated patterns or web search.
-        # The LLM uses its training data ("I know Jira's spec lives at
-        # developer.atlassian.com/...") to contribute URLs we then probe.
-        # Bad guesses cost one HTTP request each — the probe validates
-        # the response is actual OpenAPI before accepting it.
-        _emit("guessing_urls", {})
-        llm_urls = self._llm_guess_doc_urls(tool_name)
-        llm_spec_urls = llm_urls.get("openapi_spec_urls") or []
-        llm_base = llm_urls.get("api_base_url") or base_url_hint
-        llm_docs = llm_urls.get("official_docs_url") or docs_url_hint
-        if llm_spec_urls or llm_urls.get("api_base_url"):
-            _emit(
-                "url_hints",
-                {
-                    "spec_urls": len(llm_spec_urls),
-                    "has_base_url": bool(llm_urls.get("api_base_url")),
-                    "has_docs_url": bool(llm_urls.get("official_docs_url")),
-                },
-            )
-
-        # Inject the LLM-suggested spec URLs into the search-results-style
-        # input the probe consumes — that way they're tried FIRST (before
-        # the templated /openapi.json patterns). Most refreshes for
-        # well-known APIs (jira, twilio, mailchimp, ...) will land here.
+        # No URL guessing. The only spec/doc URLs we probe are the ones the
+        # web search itself surfaced (real, search-engine-vetted URLs) plus any
+        # caller-supplied hints. We never ask the LLM to invent spec URLs.
+        llm_base = base_url_hint
+        llm_docs = docs_url_hint
         probe_input = list(merged_results or [])
-        for sp in llm_spec_urls:
-            probe_input.insert(0, {"href": sp, "title": "llm-suggested", "body": ""})
 
-        # Try native OpenAPI parsing — much more reliable than letting the
-        # 3B LLM hallucinate paths from prose. The probe runs even when
-        # the search returned zero results, because base_url_hint /
-        # docs_url_hint let us try {base}/openapi.json, /swagger.json,
-        # tool-specific overrides etc. directly. Without this, seed-tool
-        # refreshes were no-ops whenever the search engine was throttled.
+        # Try native OpenAPI parsing on the real URLs found by search — much
+        # more reliable than letting the small LLM hallucinate paths from prose.
         openapi_data = self._try_parse_openapi_spec(
             probe_input,
             tool_name,
@@ -2249,9 +1932,11 @@ class DynamicAgentService:
             merged_results = merged_results + new_results
             _emit("discovered_fetched", {"new_pages": len(new_results)})
 
-        # Build a large prompt to maximise endpoint coverage.
+        # Build a large prompt to maximise endpoint coverage. The budget is
+        # generous so request-body sections on deep reference pages actually
+        # make it in — body fields are the first thing a small budget drops.
         chunks: List[str] = []
-        char_budget = 30000
+        char_budget = 100000
         for r in merged_results[:20]:
             title = (r.get("title") or "").strip()
             url = (r.get("href") or "").strip()
@@ -2270,50 +1955,37 @@ class DynamicAgentService:
             _emit("error", {"reason": "no usable page content"})
             return None
 
+        # If a real OpenAPI/Swagger spec was found, it is AUTHORITATIVE: it
+        # already gives exact endpoints + request bodies + auth_type. Running the
+        # heavy per-chunk LLM extraction on top is pure waste — and on a small
+        # local model it's the slow step that makes a refresh look "stuck". So we
+        # skip it entirely and let the spec + the focused credential-label pass
+        # do the work. The per-chunk LLM extraction only runs when there is NO
+        # spec (the model is then the only way to recover endpoints + bodies).
+        openapi_has_eps = bool(openapi_data and openapi_data.get("endpoints"))
+
         extracted: Optional[Dict[str, Any]] = None
-        if chunks:
+        if openapi_has_eps:
+            _emit(
+                "openapi_authoritative",
+                {"endpoints": len(openapi_data["endpoints"])},
+            )
+        elif chunks:
             _emit(
                 "prompt_built",
-                {"chunks": len(chunks), "char_budget_used": 30000 - char_budget},
+                {"chunks": len(chunks), "char_budget_used": 100000 - char_budget},
             )
-
-            # If OpenAPI gave us authoritative endpoints, tell the LLM to focus
-            # on the prose-y fields (auth, rate limits, examples) and not to
-            # re-derive paths.
-            openapi_hint = ""
-            if openapi_data and openapi_data.get("endpoints"):
-                n_eps = len(openapi_data["endpoints"])
-                openapi_hint = (
-                    f"\n\nNOTE: We already parsed {n_eps} endpoints + base_url "
-                    f"from this tool's OpenAPI spec. You can return endpoints=null "
-                    f"if you have nothing to add. Focus on auth_type, auth_config, "
-                    f"rate_limits, examples, and docs_url.\n"
-                )
-
-            user_msg = (
-                f"Tool name: {tool_name}\n"
-                f"Search engines used: {', '.join(engines_used) or 'none'}\n"
-                f"{openapi_hint}\n"
-                f"DOCS PAGES:\n\n"
-                + "\n\n---\n\n".join(chunks)
-                + "\n\nReturn the JSON envelope described in the system prompt."
+            # Per-chunk extraction + richer-merge (same path the file/URL import
+            # uses). A single huge call on a small local model lists endpoints
+            # but leaves request BODIES empty; chunking gives each page focused
+            # attention and the merge unions body fields across pages — which is
+            # what actually populates POST/PUT bodies.
+            extracted = self._extract_from_doc_text(
+                "\n\n---\n\n".join(chunks),
+                tool_name,
+                tool_name,
+                status_callback=status_callback,
             )
-
-            _emit("llm_extracting", {})
-            try:
-                extracted = _ollama_chat_json(
-                    _DOCS_EXTRACT_SYSTEM,
-                    user_msg,
-                    temperature=0.0,
-                    num_predict=8192,
-                    num_ctx=32768,
-                )
-            except Exception as exc:
-                logger.warning(
-                    f"LLM doc extraction failed for {tool_name}: {exc}"
-                )
-                _emit("llm_failed", {"error": str(exc)})
-                extracted = None
 
         extracted = self._normalize_extracted_docs(extracted, tool_name)
 
@@ -2335,86 +2007,19 @@ class DynamicAgentService:
             if openapi_data.get("auth_type") and not extracted.get("auth_type"):
                 extracted["auth_type"] = openapi_data["auth_type"]
 
-        # Fallback base_url: if the LLM-from-pages extractor didn't
-        # produce one (common for multi-service tools like Azure, or
-        # when search returned only marketing pages), try in order:
-        #   1. The LLM URL-guesser's `api_base_url` — usually accurate
-        #      because the LLM knows what `https://api.github.com` etc.
-        #      is, even when the spec isn't fetchable.
-        #   2. Most-common host across search results, preferring
-        #      `api.*` hostnames.
-        # Better to have a likely-correct base_url than to throw away
-        # the whole extraction (which still has useful auth + examples).
-        if not extracted.get("base_url"):
-            llm_api_base = llm_urls.get("api_base_url")
-            if llm_api_base and not _is_placeholder_url(llm_api_base):
-                extracted["base_url"] = llm_api_base
-            else:
-                fallback = self._guess_base_url_from_results(
-                    merged_results, base_url_hint
-                )
-                if fallback and not _is_placeholder_url(fallback):
-                    extracted["base_url"] = fallback
-
-        # Final check: we MUST have a base_url to call the API. If even
-        # the fallback couldn't supply one (no search results, no hint,
-        # no usable hosts), there's nothing actionable to save.
+        # We MUST have a base_url to call the API, and it must come from a real
+        # fetched doc/spec — either the parsed OpenAPI spec or the base URL the
+        # LLM read out of the actual documentation pages. No guessing: if no
+        # base_url was found in the docs, there's nothing actionable to save.
         if not extracted.get("base_url"):
             return None
+        # Focused second pass for credential labels (the single big web-path
+        # extraction often omits them on a small local model).
+        self._apply_credential_labels(
+            extracted, tool_name, "\n\n".join(chunks)
+        )
         return extracted
 
-    @staticmethod
-    def _guess_base_url_from_results(
-        results: List[Dict[str, Any]],
-        hint: Optional[str] = None,
-    ) -> Optional[str]:
-        """Pick a likely API host from search-result URLs as a fallback
-        when the LLM couldn't extract one. Heuristic: prefer hosts that
-        start with ``api.`` (most providers' API surface), then any host
-        that appears multiple times across results (signal of relevance).
-
-        Returns the first match or None. ``hint`` is the seed's known
-        base_url — we use its hostname to bias the pick on collision."""
-        from urllib.parse import urlsplit
-        from collections import Counter
-
-        hosts: List[str] = []
-        for r in results or []:
-            url = (r.get("href") or "").strip()
-            if not url:
-                continue
-            try:
-                parts = urlsplit(url if "://" in url else f"https://{url}")
-            except Exception:
-                continue
-            host = (parts.netloc or "").strip().lower()
-            # Never derive an API host from a content farm / forum / reseller
-            # (dev.to, proxycurl, stackoverflow, …) — those are never the
-            # provider's real API surface.
-            if host and not any(d in host for d in _LOW_TRUST_DOC_DOMAINS):
-                hosts.append(host)
-        if not hosts:
-            return None
-
-        # 1. Any host that starts with "api." wins — strong signal of API
-        #    surface vs. marketing pages.
-        for h in hosts:
-            if h.startswith("api."):
-                return f"https://{h}"
-
-        # 2. Most frequent host = the canonical doc source. Skips obvious
-        #    referrer noise (every result on the same host = the official
-        #    docs site, which is also likely close to the API host).
-        counts = Counter(hosts)
-        top_host, _ = counts.most_common(1)[0]
-        return f"https://{top_host}"
-
-    # Path segments that strongly suggest an API reference page.
-    _API_PATH_SIGNALS = re.compile(
-        r"/(?:api|rest|reference|endpoint|resource|v\d+|graphql|swagger|openapi"
-        r"|methods?|operations?|objects?|types?|schemas?)/",
-        re.IGNORECASE,
-    )
     # Path segments that should be skipped (marketing / non-reference noise).
     _SKIP_PATH_SIGNALS = re.compile(
         r"/(?:blog|changelog|about|pricing|login|signup|register|status"
@@ -2473,6 +2078,13 @@ class DynamicAgentService:
             if len(out) >= max_links:
                 break
         return out
+
+    # Path segments that signal an API-reference page (boosts crawl priority).
+    _API_PATH_SIGNALS = re.compile(
+        r"/(?:api|rest|reference|endpoint|resource|v\d+|graphql|swagger|openapi"
+        r"|methods?|operations?|objects?|types?|schemas?)/",
+        re.IGNORECASE,
+    )
 
     @classmethod
     def _score_api_link(cls, url: str) -> int:
@@ -2590,41 +2202,6 @@ class DynamicAgentService:
         sorted_urls = sorted(discovered, key=lambda u: -discovered[u])
         return sorted_urls[:max_pages]
 
-    def _extract_from_llm_knowledge(
-        self, tool_name: str
-    ) -> Optional[Dict[str, Any]]:
-        """Last-resort fallback: ask the LLM to synthesise API details from
-        its training-data knowledge when all web extraction paths fail.
-
-        This makes the agent truly dynamic — even obscure tools that the
-        search engine doesn't index well get usable data as long as the
-        LLM was trained on their documentation."""
-        logger.info(f"falling back to LLM training-data knowledge for {tool_name}")
-        try:
-            payload = _ollama_chat_json(
-                _LLM_KNOWLEDGE_SYSTEM,
-                f"Tool name: {tool_name}\n\nReturn the JSON envelope described in the system prompt.",
-                temperature=0.0,
-                num_predict=4096,
-                num_ctx=8192,
-            )
-        except Exception as exc:
-            logger.warning(f"LLM knowledge fallback failed for {tool_name}: {exc}")
-            return None
-
-        if not isinstance(payload, dict):
-            return None
-        if not payload.get("base_url"):
-            logger.info(f"LLM has no reliable knowledge of {tool_name}")
-            return None
-
-        base_url = _sanitize_url_string(str(payload["base_url"]))
-        if not base_url.startswith(("http://", "https://")):
-            return None
-
-        payload["base_url"] = base_url
-        return self._normalize_extracted_docs(payload, tool_name)
-
     def _run_multi_source_search(
         self, tool_name: str
     ) -> Tuple[List[Dict[str, Any]], List[str]]:
@@ -2699,84 +2276,6 @@ class DynamicAgentService:
 
         return merged, engines_used
 
-    # Per-tool overrides for tools whose OpenAPI spec lives at a URL the
-    # generic patterns won't discover. Empty by default — populated only
-    # when generic probing genuinely can't find a spec. Keeping this small
-    # is deliberate: the goal is for `_probe_known_openapi_patterns` to do
-    # the work for the vast majority of seeds.
-    _OPENAPI_OVERRIDE_URLS: Dict[str, Tuple[str, ...]] = {
-        "github": (
-            "https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.json",
-        ),
-        "stripe": (
-            "https://raw.githubusercontent.com/stripe/openapi/master/openapi/spec3.json",
-        ),
-        "slack": (
-            "https://api.slack.com/specs/openapi/v2/slack_web.json",
-        ),
-        "notion": (
-            "https://developers.notion.com/openapi.json",
-        ),
-        "openai": (
-            "https://raw.githubusercontent.com/openai/openai-openapi/master/openapi.yaml",
-        ),
-        # Atlassian products — specs live at developer.atlassian.com
-        "jira": (
-            "https://developer.atlassian.com/cloud/jira/platform/swagger-v3.v3.json",
-            "https://developer.atlassian.com/cloud/jira/platform/swagger-v3.v3.yaml",
-        ),
-        "confluence": (
-            "https://developer.atlassian.com/cloud/confluence/swagger-v3.v3.json",
-        ),
-        "trello": (
-            "https://developer.atlassian.com/cloud/trello/swagger.v3.json",
-        ),
-        # Figma — spec on GitHub
-        "figma": (
-            "https://raw.githubusercontent.com/figma/rest-api-spec/main/openapi/openapi.yaml",
-        ),
-        # Intercom
-        "intercom": (
-            "https://raw.githubusercontent.com/intercom/Intercom-OpenApi/main/descriptions/2.10/api.intercom.io.yaml",
-        ),
-        # Asana
-        "asana": (
-            "https://raw.githubusercontent.com/Asana/openapi/master/defs/asana_oas.yaml",
-        ),
-        # Twilio — publishes per-product specs in a GitHub repo (twilio-oai)
-        "twilio": (
-            "https://raw.githubusercontent.com/twilio/twilio-oai/main/spec/json/twilio_api_v2010.json",
-        ),
-        # HubSpot — publishes many product specs; the CRM contacts one is most used
-        "hubspot": (
-            "https://raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/CRM/Contacts/Codegen/V3/contacts.json",
-        ),
-        # Shopify — Admin REST API spec
-        "shopify": (
-            "https://raw.githubusercontent.com/shopify/shopify-api-specs/main/admin/rest/stable.json",
-        ),
-        # Mailchimp
-        "mailchimp": (
-            "https://api.mailchimp.com/schema/3.0/Swagger.json",
-        ),
-        # SendGrid
-        "sendgrid": (
-            "https://raw.githubusercontent.com/sendgrid/sendgrid-oai/main/oai.json",
-        ),
-        # Anthropic Claude API
-        "anthropic": (
-            "https://raw.githubusercontent.com/anthropics/anthropic-sdk-python/main/openapi.yaml",
-        ),
-        # Zoom
-        "zoom": (
-            "https://marketplace.zoom.us/docs/api-reference/openapi.json",
-        ),
-        # Zendesk
-        "zendesk": (
-            "https://developer.zendesk.com/api-reference/ticketing/introduction/openapi.json",
-        ),
-    }
-
     @staticmethod
     def _looks_like_openapi_url(url: str) -> bool:
         """Heuristic: a URL that's WORTH PROBING as an OpenAPI/Swagger spec.
@@ -2810,51 +2309,6 @@ class DynamicAgentService:
         "/api/openapi.json",
         "/api/swagger.json",
     )
-
-    # Common hostname templates we try for ANY tool — fully generic, no
-    # per-tool knowledge. These cover the patterns most providers use to
-    # host their API docs. Each template uses {slug} which is the tool
-    # name (lowercased, alphanumeric only). We try a few suffixes (.com,
-    # .io, .dev, .ai) because providers vary; the probe path validates
-    # the response is actually OpenAPI so wrong guesses cost one HTTP
-    # request each and are then discarded.
-    _GENERIC_HOST_TEMPLATES: Tuple[str, ...] = (
-        "https://api.{slug}.com",
-        "https://api.{slug}.io",
-        "https://api.{slug}.dev",
-        "https://api.{slug}.ai",
-        "https://{slug}.com/api",
-        "https://{slug}.io/api",
-        "https://developers.{slug}.com",
-        "https://docs.{slug}.com",
-        "https://{slug}.com",
-        "https://{slug}.io",
-    )
-
-    @staticmethod
-    def _tool_slug(tool_name: str) -> str:
-        """Strip the tool name to URL-safe characters so we can plug it
-        into hostname templates. ``Microsoft Teams`` → ``microsoftteams``."""
-        if not tool_name:
-            return ""
-        return re.sub(r"[^a-z0-9]", "", tool_name.lower())
-
-    @classmethod
-    def _guess_base_urls(cls, tool_name: str) -> List[str]:
-        """Generate candidate API host origins from the tool name alone.
-        No per-tool knowledge — purely templated. The probe step validates
-        each by checking for OpenAPI markers, so wrong guesses are cheap."""
-        slug = cls._tool_slug(tool_name)
-        if not slug:
-            return []
-        out: List[str] = []
-        seen: set = set()
-        for tmpl in cls._GENERIC_HOST_TEMPLATES:
-            origin = tmpl.format(slug=slug)
-            if origin not in seen:
-                seen.add(origin)
-                out.append(origin)
-        return out
 
     @staticmethod
     def _hosts_from_search_results(
@@ -2895,19 +2349,15 @@ class DynamicAgentService:
     ) -> List[str]:
         """Build the list of URLs to probe for an OpenAPI spec.
 
-        Priority order:
-          1. Per-tool override URLs (highest signal — only set when generic
-             probing demonstrably fails for a popular tool).
-          2. Explicit hints (the seed's base_url / docs_url).
-          3. Hosts extracted from search results (real URLs the search
+        No guessing — origins come only from real signals:
+          1. Explicit hints (a caller-supplied base_url / docs_url).
+          2. Hosts extracted from search results (real URLs the search
              engine returned for this tool).
-          4. Templated guesses from the tool name (api.{slug}.com etc.) —
-             cheapest signal, always tried so unknown tools still get a
-             shot at the OpenAPI probe path.
 
-        For each origin we tried, every pattern in _OPENAPI_PROBE_PATHS is
-        joined on. Returns a deduplicated list capped to keep refresh
-        latency bounded even when no spec exists."""
+        For each origin, every pattern in _OPENAPI_PROBE_PATHS is joined on.
+        Returns a deduplicated list capped to keep latency bounded even when
+        no spec exists. If there are no hints and no search hosts, returns []
+        (there's nothing real to probe)."""
         from urllib.parse import urlsplit
 
         hint_origins: List[str] = []
@@ -2922,17 +2372,13 @@ class DynamicAgentService:
                     hint_origins.append(origin)
 
         search_origins = cls._hosts_from_search_results(search_results or [])
-        guessed_origins = cls._guess_base_urls(tool_name)
 
         out: List[str] = []
         seen: set = set()
-        # 1. Per-tool overrides FIRST — never lose them to the cap.
-        for override in cls._OPENAPI_OVERRIDE_URLS.get(tool_name, ()):
-            if override not in seen:
-                seen.add(override)
-                out.append(override)
-        # 2-4. Origins, in priority order, each joined with every probe path.
-        for origin in hint_origins + search_origins + guessed_origins:
+        # Origins from real hints + search-result hosts, each joined with every
+        # probe path. No templated host guesses, no per-tool override URLs —
+        # we only probe spec paths on hosts the search actually surfaced.
+        for origin in hint_origins + search_origins:
             for path in cls._OPENAPI_PROBE_PATHS:
                 url = origin + path
                 if url not in seen:
@@ -2999,83 +2445,8 @@ class DynamicAgentService:
             return None
         return spec
 
-    def _llm_guess_doc_urls(self, tool_name: str) -> Dict[str, Any]:
-        """Ask the LLM to suggest where THIS specific tool's docs and
-        OpenAPI spec live, based on its training data.
-
-        Returns a dict with the (possibly null) keys:
-          - ``official_docs_url``  — the human-readable docs URL
-          - ``api_base_url``       — the production API host
-          - ``openapi_spec_urls``  — list of candidate spec URLs to probe
-
-        This is what makes refresh truly dynamic: instead of probing a
-        fixed list of templated URLs (api.<tool>.com/openapi.json, ...),
-        the LLM contributes URLs it knows from training — Jira's spec at
-        developer.atlassian.com, Twilio's at twilio.com/docs/openapi,
-        Mailchimp's at api.mailchimp.com/schema, etc.
-
-        Failure is non-fatal: on any error we return an empty dict and
-        the caller falls back to the templated patterns / search-result
-        hosts. The probe step always validates fetched JSON anyway, so
-        even an LLM that returns wrong URLs only costs one HTTP request
-        per bad guess."""
-        if not tool_name:
-            return {}
-        user_msg = f"Tool name: {tool_name}\n\nReturn the JSON envelope described in the system prompt."
-        try:
-            payload = _ollama_chat_json(
-                _DOCS_URL_GUESS_SYSTEM,
-                user_msg,
-                temperature=0.0,
-                num_predict=256,
-                num_ctx=2048,
-            )
-        except Exception as exc:
-            logger.debug(
-                f"LLM URL guess failed for {tool_name}: "
-                f"{exc.__class__.__name__}"
-            )
-            return {}
-
-        if not isinstance(payload, dict):
-            return {}
-
-        # Sanitize: strip markdown junk, drop empties, keep only HTTP(S).
-        result: Dict[str, Any] = {}
-        for key in ("official_docs_url", "api_base_url"):
-            val = payload.get(key)
-            if isinstance(val, str):
-                cleaned = _sanitize_url_string(val)
-                if cleaned.lower().startswith(("http://", "https://")):
-                    result[key] = cleaned
-
-        spec_urls = payload.get("openapi_spec_urls")
-        cleaned_specs: List[str] = []
-        if isinstance(spec_urls, list):
-            for raw in spec_urls:
-                if not isinstance(raw, str):
-                    continue
-                u = _sanitize_url_string(raw)
-                if u.lower().startswith(("http://", "https://")):
-                    cleaned_specs.append(u)
-        if cleaned_specs:
-            result["openapi_spec_urls"] = cleaned_specs[:3]
-
-        if result:
-            logger.info(
-                f"LLM doc-URL guess for {tool_name}: "
-                f"base={result.get('api_base_url')!r}, "
-                f"docs={result.get('official_docs_url')!r}, "
-                f"specs={len(result.get('openapi_spec_urls', []))}"
-            )
-        return result
-
-    # Common locations inside a GitHub repo where API providers stash
-    # their OpenAPI/Swagger spec. When the search engine surfaces a
-    # repo URL for the tool (twilio-oai, sendgrid-oai, …), we expand
-    # the repo URL across all these paths × both default branches —
-    # the probe step then validates each by checking for openapi/swagger
-    # keys, so wrong guesses cost one HTTP request each.
+    # Common filenames/paths providers use when publishing an OpenAPI spec in
+    # a GitHub repo — probed by _github_repo_to_spec_urls.
     _GITHUB_SPEC_FILE_PATTERNS: Tuple[str, ...] = (
         "openapi.json",
         "openapi.yaml",
@@ -3089,13 +2460,9 @@ class DynamicAgentService:
         "schema/openapi.json",
         "docs/openapi.json",
         "api/openapi.json",
-        # twilio-oai-specific shape — generally for multi-API providers
-        # who publish per-product specs under a `spec/json/` directory.
+        # twilio-oai-specific shape — multi-API providers who publish per-product
+        # specs under a `spec/json/` directory.
         "spec/json/openapi.json",
-        # Many providers publish the spec at the repo root with a
-        # provider-prefixed filename: `stripe/openapi/spec3.json`.
-        # We don't know the filename here, so we also enumerate a small
-        # set of common provider conventions in _github_repo_to_spec_urls.
     )
     _GITHUB_DEFAULT_BRANCHES: Tuple[str, ...] = ("main", "master")
 
@@ -3273,14 +2640,13 @@ class DynamicAgentService:
 
         Tries, in order:
           1. URLs from search results that pattern-match _looks_like_openapi_url
-          2. Generic patterns applied to base_url/docs_url
-             ({base}/openapi.json, /swagger.json, …)
-          3. Per-tool override URLs (only for tools where generic patterns
-             demonstrably fail — github, stripe).
+          2. Standard spec paths ({base}/openapi.json, /swagger.json, …) joined
+             onto real hosts only — caller-supplied hints + search-result hosts.
 
-        Returns a partial extracted-docs dict (base_url + endpoints + maybe
-        docs_url) on the first valid spec, None if none of the candidates
-        produce a usable spec."""
+        No templated host guesses and no per-tool overrides: every candidate
+        comes from a real fetched signal. Returns a partial extracted-docs dict
+        (base_url + endpoints + maybe docs_url) on the first valid spec, None if
+        none of the candidates produce a usable spec."""
         # 1. Search-result candidates first — these are most likely to be
         # the canonical spec URL (well-indexed, freshly cached).
         search_candidates = [
@@ -3288,10 +2654,8 @@ class DynamicAgentService:
             for r in (search_results or [])
             if self._looks_like_openapi_url(r.get("href") or "")
         ]
-        # 2. Generic + override probe URLs based on hints + search-result
-        #    hosts + templated guesses. Even with zero hints (an unknown
-        #    tool the agent has never heard of), the guessed origins give
-        #    us a real shot at finding a spec.
+        # 2. Standard spec paths joined onto real hosts (hints + search-result
+        #    hosts). No guessing — if there are no real hosts, this is empty.
         probe_candidates = self._candidate_probe_urls(
             tool_name,
             base_url_hint,
@@ -3309,13 +2673,11 @@ class DynamicAgentService:
         if not ordered:
             return None
 
-        # Cap total fetches so refresh latency stays bounded even when no
-        # spec exists. 10 attempts × 8s = 80s worst case, but in practice
-        # most fail on the cheap status-code / Content-Type check long
-        # before they cost a full timeout. We need a fairly generous cap
-        # because for unknown tools we're firing N templated guesses
-        # (api.{slug}.com, developers.{slug}.com, …) and only one needs
-        # to land for the path to succeed.
+        # Cap total fetches so latency stays bounded even when no spec exists.
+        # 10 attempts × 8s = 80s worst case, but in practice most fail on the
+        # cheap status-code / Content-Type check long before a full timeout.
+        # Candidates are all real (search-result spec URLs + standard paths on
+        # real hosts), so the cap just bounds the standard-path probes.
         for spec_url in ordered[:10]:
             spec = self._fetch_openapi_spec(spec_url)
             if not spec:
@@ -3418,7 +2780,10 @@ class DynamicAgentService:
                     "path": _normalize_endpoint(path),
                     "description": description or f"{method.upper()} {path}",
                     "params": params_doc or None,
-                    "body": None,
+                    # Extract the documented request-body fields from the spec —
+                    # this is the ground truth the planner/grounding use to drop
+                    # invalid fields ("extra fields sent").
+                    "body": _openapi_body_fields(op, spec),
                 }
             if len(endpoints) >= MAX_ENDPOINTS:
                 break
@@ -3651,6 +3016,22 @@ class DynamicAgentService:
                 extracted["examples"] = cleaned or None
                 if not cleaned:
                     extracted.pop("examples", None)
+        # quirks — accept a list of non-empty strings only. The small LLM may
+        # emit a single string or junk; coerce / drop accordingly.
+        qk = extracted.get("quirks")
+        if qk is not None:
+            if isinstance(qk, str):
+                qk = [qk]
+            if not isinstance(qk, list):
+                extracted.pop("quirks", None)
+            else:
+                cleaned_q = [
+                    s.strip() for s in qk
+                    if isinstance(s, str) and s.strip()
+                ]
+                extracted["quirks"] = cleaned_q or None
+                if not cleaned_q:
+                    extracted.pop("quirks", None)
         extracted.setdefault("display_name", tool_name.title())
         return extracted
 
@@ -3817,9 +3198,21 @@ class DynamicAgentService:
             ]
 
         if at == "BASIC":
+            # Generic hint: most developer APIs that use HTTP Basic put the
+            # API key in the username and the secret in the password. When the
+            # docs name them specifically, credential_field_overrides (set at
+            # extraction time) replaces these labels with the exact names.
             return [
-                _apply({"name": "username", "label": "Username", "type": "text", "required": True}),
-                _apply({"name": "password", "label": "Password", "type": "password", "required": True}),
+                _apply({
+                    "name": "username", "label": "Username", "type": "text",
+                    "required": True,
+                    "placeholder": "Usually your API key / Key ID",
+                }),
+                _apply({
+                    "name": "password", "label": "Password", "type": "password",
+                    "required": True,
+                    "placeholder": "Usually your API secret / Key Secret",
+                }),
             ]
 
         if at == "AWS_SIGV4":
@@ -3836,7 +3229,18 @@ class DynamicAgentService:
                 }),
             ]
 
-        if at in ("OAUTH2", "OAUTH1", "OAUTH2_PKCE"):
+        if at == "OAUTH1":
+            # OAuth 1.0a signs every request with a consumer key/secret +
+            # token/secret pair — there's no browser redirect we can drive,
+            # so the user pastes all four from the provider's app console.
+            return [
+                _apply({"name": "consumer_key", "label": "Consumer Key (API Key)", "type": "text", "required": True}),
+                _apply({"name": "consumer_secret", "label": "Consumer Secret (API Secret)", "type": "password", "required": True}),
+                _apply({"name": "token", "label": "Access Token", "type": "text", "required": True}),
+                _apply({"name": "token_secret", "label": "Access Token Secret", "type": "password", "required": True}),
+            ]
+
+        if at in ("OAUTH2", "OAUTH2_PKCE"):
             return [
                 {
                     "name": "access_token",
@@ -3881,6 +3285,35 @@ class DynamicAgentService:
     # =================================================== step 4: plan + run
 
     @staticmethod
+    def _documented_fields(
+        endpoints: dict, method: Optional[str], endpoint_path: Optional[str]
+    ) -> Tuple[Optional[set], Optional[set]]:
+        """Return (param_names, body_names) the DB documents for the endpoint
+        matching this method+path, or (None, None) when there's no confident
+        match / no documented schema.
+
+        Used to ground the planner: a field that isn't in the documented schema
+        is something the model invented, not something the API accepts."""
+        norm = _normalize_endpoint(endpoint_path or "")
+        if not norm:
+            return (None, None)
+        want_method = (method or "GET").upper()
+        for info in (endpoints or {}).values():
+            if not isinstance(info, dict):
+                continue
+            if (info.get("method") or "GET").upper() != want_method:
+                continue
+            if _normalize_endpoint(info.get("path") or "") != norm:
+                continue
+            body = info.get("body")
+            params = info.get("params")
+            return (
+                set(params.keys()) if isinstance(params, dict) and params else None,
+                set(body.keys()) if isinstance(body, dict) and body else None,
+            )
+        return (None, None)
+
+    @staticmethod
     def _filter_endpoints(endpoints: dict, prompt: str, max_endpoints: int = 12) -> dict:
         """Return at most max_endpoints entries most relevant to prompt (keyword match)."""
         if not endpoints or len(endpoints) <= max_endpoints:
@@ -3904,18 +3337,24 @@ class DynamicAgentService:
         return top
 
     def plan_action(
-        self, *, tool: ToolDefinition, prompt: str
+        self,
+        *,
+        tool: ToolDefinition,
+        prompt: str,
+        db: Optional[Session] = None,
+        user_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         raw_endpoints = tool.endpoints or {}
         filtered = self._filter_endpoints(raw_endpoints, prompt)
         endpoints_summary = json.dumps(filtered, default=str)
-        # Provider-specific gotchas the planner MUST follow (Razorpay's
-        # paise-not-rupees rule, Stripe's cents rule, etc.). Sourced from
-        # the seed dict — LLM-scraped tools just have no quirks.
-        quirks = (_SEED_TOOLS.get(tool.name) or {}).get("quirks") or []
+        # Provider rules the planner MUST follow (amount units, required
+        # headers, date formats, …). These are extracted FROM THIS TOOL'S DOCS
+        # at fetch/import time — not hardcoded — so e.g. a payment gateway's
+        # "amount is in the smallest currency unit" rule reaches the planner.
+        quirks = [q for q in (tool.quirks or []) if isinstance(q, str) and q.strip()]
         quirks_block = (
-            "\n\nIMPORTANT PROVIDER RULES — follow these exactly:\n"
-            + "\n".join(f"- {q}" for q in quirks)
+            "\n\nIMPORTANT PROVIDER RULES (from this API's docs) — follow these "
+            "exactly:\n" + "\n".join(f"- {q}" for q in quirks)
             if quirks
             else ""
         )
@@ -3928,15 +3367,21 @@ class DynamicAgentService:
             "Return the JSON envelope described in the system prompt."
         )
         try:
-            plan = _ollama_chat_json(
+            # Prefer the user's paid model (Claude/GPT) for planning accuracy —
+            # complex bodies (payment links, etc.) are exactly where a small
+            # local model invents extra/invalid fields. Falls back to the local
+            # model when no paid key is configured. A single HTTP-call plan is a
+            # small JSON object, so num_predict stays low.
+            plan = self._extract_json_smart(
                 _ACTION_PLAN_SYSTEM,
                 user_msg,
-                temperature=0.0,
-                # A single HTTP-call plan is a small JSON object; 384 was far
-                # more than needed and dominated generation time. Keep num_ctx
-                # at the shared default so the model stays warm across calls
-                # (varying it forces a model reload — see identify_tool).
                 num_predict=224,
+                # Match identify_tool's window so the local model stays warm
+                # between identify → plan — a bigger num_ctx forces a reload
+                # that stalls the planning step.
+                num_ctx=4096,
+                db=db,
+                user_id=user_id,
             )
         except Exception as exc:
             logger.exception("plan_action: LLM failed")
@@ -3954,6 +3399,48 @@ class DynamicAgentService:
         if isinstance(plan.get("params"), (dict, list)):
             cleaned = _strip_empties(plan["params"])
             plan["params"] = cleaned if cleaned not in (None, {}, []) else None
+
+        # Reconcile the plan against the DB schema. A small local model often
+        # (a) puts body fields into `params` on a POST/PUT/PATCH, and (b)
+        # invents fields the API rejects ("extra fields sent"). Using the
+        # documented endpoint as ground truth, RELOCATE every provided field to
+        # the bucket the docs define it in, and DROP anything documented
+        # nowhere. Only runs on a confident endpoint match with a real schema.
+        doc_params, doc_body = self._documented_fields(
+            raw_endpoints, plan.get("method"), plan.get("endpoint")
+        )
+        if doc_params or doc_body:
+            provided: Dict[str, Any] = {}
+            for src in (plan.get("params"), plan.get("body")):
+                if isinstance(src, dict):
+                    provided.update(src)
+            new_params: Dict[str, Any] = {}
+            new_body: Dict[str, Any] = {}
+            dropped: List[str] = []
+            for k, v in provided.items():
+                if doc_body and k in doc_body:
+                    new_body[k] = v
+                elif doc_params and k in doc_params:
+                    new_params[k] = v
+                else:
+                    dropped.append(k)
+            if dropped:
+                logger.info(
+                    "plan_action: dropped undocumented fields for %s %s: %s",
+                    tool.name, plan.get("endpoint"), dropped,
+                )
+            plan["params"] = new_params or None
+            plan["body"] = new_body or None
+        elif (
+            (plan.get("method") or "").upper() in ("POST", "PUT", "PATCH")
+            and isinstance(plan.get("params"), dict)
+            and plan["params"]
+        ):
+            # No documented schema to reconcile against, but a write call with
+            # everything in the query string is almost always a misplacement —
+            # fold params into the JSON body so the provider sees them there.
+            plan["body"] = {**(plan.get("body") or {}), **plan["params"]}
+            plan["params"] = None
 
         # Integer-amount providers (Razorpay paise, Stripe cents, PayPal
         # minor units, etc.) reject decimals. Round at the very last step
@@ -3977,13 +3464,18 @@ class DynamicAgentService:
         endpoint: str,
         params: Optional[Dict[str, Any]] = None,
         body: Optional[Any] = None,
+        db: Optional[Session] = None,
     ) -> Tuple[int, Any]:
         """Make the authenticated HTTP call. Returns (status_code, parsed_body).
 
         Branches to ``_execute_boto3`` when the tool's auth_type is
         ``AWS_SIGV4`` — AWS isn't a single REST endpoint so we can't sign
         a generic request; boto3 handles the per-service routing and
-        signing for us."""
+        signing for us.
+
+        When ``db`` is supplied and the provider replies 401 on an OAuth2
+        connection, we transparently refresh the access token and retry once —
+        covers tokens revoked/expired without a known ``expires_at``."""
         if (tool.auth_type or "").upper() == "AWS_SIGV4":
             return self._execute_boto3(
                 tool=tool,
@@ -3992,8 +3484,6 @@ class DynamicAgentService:
                 kwargs={**(params or {}), **(body or {})} if (params or body) else {},
             )
 
-        creds = self.decrypt_credentials(connection)
-        headers = self._auth_headers(tool, creds)
         # Belt-and-suspenders: even if the DB row pre-dates the extractor
         # sanitization (e.g. a Gmail row with `<https://…>` brackets), strip
         # the junk before requests.request rejects the URL with
@@ -4007,17 +3497,33 @@ class DynamicAgentService:
             )
         url = cleaned_base.rstrip("/") + cleaned_endpoint
 
-        try:
-            resp = requests.request(
-                method.upper(),
-                url,
-                headers=headers,
-                params=params,
-                json=body if body is not None else None,
-                timeout=30,
+        def _send() -> "requests.Response":
+            creds = self.decrypt_credentials(connection)
+            # url/method/params are only consumed by the OAUTH1 signer.
+            headers = self._auth_headers(
+                tool, creds, method=method, url=url, params=params
             )
-        except requests.RequestException as exc:
-            raise DynamicAgentError(f"HTTP request to {url} failed: {exc}") from exc
+            try:
+                return requests.request(
+                    method.upper(),
+                    url,
+                    headers=headers,
+                    params=params,
+                    json=body if body is not None else None,
+                    timeout=30,
+                )
+            except requests.RequestException as exc:
+                raise DynamicAgentError(f"HTTP request to {url} failed: {exc}") from exc
+
+        resp = _send()
+        # 401 → token may be stale/revoked. Refresh once and retry.
+        if (
+            resp.status_code == 401
+            and db is not None
+            and (tool.auth_type or "").upper() in ("OAUTH2", "OAUTH2_PKCE")
+            and self.refresh_oauth_token(db, connection, tool)
+        ):
+            resp = _send()
 
         ct = resp.headers.get("content-type", "")
         if "application/json" in ct:
@@ -4152,9 +3658,19 @@ class DynamicAgentService:
         return 200, response
 
     def _auth_headers(
-        self, tool: ToolDefinition, creds: Dict[str, Any]
+        self,
+        tool: ToolDefinition,
+        creds: Dict[str, Any],
+        *,
+        method: str = "GET",
+        url: str = "",
+        params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, str]:
-        """Build the auth headers for the upstream call."""
+        """Build the auth headers for the upstream call.
+
+        ``method`` / ``url`` / ``params`` are only needed for OAUTH1, whose
+        signature is computed per-request over the request line — the other
+        auth types ignore them."""
         at = (tool.auth_type or "API_KEY").upper()
         cfg = tool.auth_config or {}
         headers: Dict[str, str] = {
@@ -4186,6 +3702,21 @@ class DynamicAgentService:
                 header_name = cfg.get("header_name") or "Authorization"
                 prefix = cfg.get("credential_prefix") or "Bearer "
                 headers[header_name] = f"{prefix}{token}"
+        elif at == "OAUTH1":
+            ck = creds.get("consumer_key") or creds.get("client_id")
+            cs = creds.get("consumer_secret") or creds.get("client_secret")
+            tok = creds.get("token") or creds.get("access_token") or ""
+            ts = creds.get("token_secret") or ""
+            if ck and cs and url:
+                headers["Authorization"] = _oauth1_auth_header(
+                    method or "GET",
+                    url,
+                    params,
+                    consumer_key=ck,
+                    consumer_secret=cs,
+                    token=tok,
+                    token_secret=ts,
+                )
         return headers
 
     def refresh_oauth_token(
@@ -4270,6 +3801,10 @@ class DynamicAgentService:
             "Write the user-facing one-paragraph summary now."
         )
         text = _ollama_chat_text(sys_prompt, user_msg, temperature=0.2, num_predict=220)
+        # Deterministically replace any hallucinated/placeholder link with the
+        # REAL one from the response (extracted from the FULL body, not the
+        # truncated excerpt the LLM saw).
+        text = _fix_summary_links(text.strip(), response_body)
         return text.strip() or self._fallback_summary(
             language=language, http_status=http_status, error=error
         )
@@ -4295,10 +3830,20 @@ class DynamicAgentService:
         user_id: int,
         prompt: str,
         language: str = "en",
+        source_url: Optional[str] = None,
+        file_bytes: Optional[bytes] = None,
+        filename: Optional[str] = None,
+        content_type: Optional[str] = None,
         status_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
         summarize: bool = True,
     ) -> Dict[str, Any]:
         """End-to-end: identify → docs → connection → plan → execute.
+
+        ``source_url`` (optional) is a user-supplied documentation / OpenAPI
+        spec link. ``file_bytes`` (optional) is an uploaded doc/spec file. When
+        either is present — or when the prompt itself contains a URL — the
+        identified tool's docs are built from THAT source only (no web search),
+        mirroring the web UI's import path.
 
         ``summarize=False`` skips the final user-facing LLM summary call —
         used by the MCP run_action path, where the calling AI assistant
@@ -4362,8 +3907,32 @@ class DynamicAgentService:
             )
 
         # ---- 2. docs
-        emit("looking_up_docs", tool=tool_name)
-        tool = self.lookup_or_fetch_docs(db, tool_name)
+        # Build the tool from a USER-SUPPLIED doc (no web search) when:
+        #   • a file was uploaded, or
+        #   • an explicit source_url param was given (UI/MCP "import"), or
+        #   • the prompt contains a URL AND the router judged this to be a
+        #     doc-import request (wants_doc_import). A bare link that is just
+        #     content of an action ("post sharing https://…") is NOT treated
+        #     as a doc — it falls through to the normal flow.
+        explicit_source = (source_url or "").strip() or None
+        prompt_url = _first_url_in_text(prompt) if decision.get("wants_doc_import") else None
+        doc_source = explicit_source or prompt_url
+        if file_bytes:
+            emit("importing_doc", tool=tool_name, filename=filename)
+            tool = self.import_tool_from_source(
+                db, tool_name, file_bytes=file_bytes, filename=filename,
+                content_type=content_type, user_id=user_id,
+                status_callback=status_callback,
+            )
+        elif doc_source:
+            emit("importing_doc", tool=tool_name, source_url=doc_source)
+            tool = self.import_tool_from_source(
+                db, tool_name, source_url=doc_source,
+                user_id=user_id, status_callback=status_callback,
+            )
+        else:
+            emit("looking_up_docs", tool=tool_name)
+            tool = self.lookup_or_fetch_docs(db, tool_name)
         if tool:
             emit(
                 "docs_loaded",
@@ -4479,7 +4048,7 @@ class DynamicAgentService:
 
         # ---- 4. plan
         emit("planning_action", tool=tool.name)
-        plan = self.plan_action(tool=tool, prompt=prompt)
+        plan = self.plan_action(tool=tool, prompt=prompt, db=db, user_id=user_id)
         emit(
             "action_planned",
             method=(plan.get("method") or "").upper(),
@@ -4523,6 +4092,7 @@ class DynamicAgentService:
                 endpoint=endpoint,
                 params=plan.get("params"),
                 body=plan.get("body"),
+                db=db,
             )
             emit("executed", http_status=http_status)
             error_text = (
@@ -4749,6 +4319,7 @@ class DynamicAgentService:
                 endpoint=endpoint_path,
                 params=params or None,
                 body=body or None,
+                db=db,
             )
             error_text = (
                 None
