@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     # client's request timeout. Keeping the model pinned ("-1" = forever,
     # or a duration like "30m") turns every call into a warm ~1-3s call.
     OLLAMA_KEEP_ALIVE: str = "30m"
+    # Context window for DOC EXTRACTION (the heaviest local-LLM step). The KV
+    # cache grows with num_ctx, so a big window (32k) on a 7B model needs
+    # ~9GB — which swaps to death on an 8GB Mac and makes a doc import look
+    # "stuck" before timing out. 8192 keeps a 7B comfortably under 8GB. Bump
+    # this on a bigger machine for more doc text per chunk. Planning uses a
+    # fixed small 4096 regardless.
+    OLLAMA_EXTRACT_NUM_CTX: int = 8192
 
     # Ollama hosted web search (optional). This is a SEPARATE service from the
     # EC2 chat endpoint above — it's hosted on ollama.com and needs an API

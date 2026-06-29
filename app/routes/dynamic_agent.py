@@ -41,6 +41,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import RedirectResponse, StreamingResponse
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -172,7 +173,10 @@ async def turn(
     field schema the frontend renders to collect the creds, then the user
     POSTs to ``/credentials`` and re-runs ``/turn``."""
     try:
-        result = dynamic_agent_service.run_turn(
+        # Off the event loop — run_turn renders pages with sync Playwright and
+        # makes blocking LLM/HTTP calls.
+        result = await run_in_threadpool(
+            dynamic_agent_service.run_turn,
             db,
             user_id=current_user.id,
             prompt=payload.prompt,
@@ -366,7 +370,10 @@ async def turn_with_upload(
         file_ct = file.content_type
 
     try:
-        result = dynamic_agent_service.run_turn(
+        # run_turn does headless rendering (sync Playwright) + blocking LLM/HTTP
+        # work — keep it off the asyncio event loop.
+        result = await run_in_threadpool(
+            dynamic_agent_service.run_turn,
             db,
             user_id=current_user.id,
             prompt=prompt,
@@ -400,9 +407,10 @@ async def submit_credentials(
     )
     if not tool:
         # Lazy-fetch: maybe the user is supplying creds for a tool we
-        # haven't fetched docs for yet.
-        tool = dynamic_agent_service.lookup_or_fetch_docs(
-            db, payload.tool.strip().lower()
+        # haven't fetched docs for yet. Off the event loop (sync Playwright).
+        tool = await run_in_threadpool(
+            dynamic_agent_service.lookup_or_fetch_docs,
+            db, payload.tool.strip().lower(),
         )
         if not tool:
             raise HTTPException(
@@ -625,7 +633,11 @@ async def refresh_tool(
     name = (payload.get("tool") or "").strip().lower()
     if not name:
         raise HTTPException(status_code=400, detail="`tool` is required")
-    tool = dynamic_agent_service.lookup_or_fetch_docs(db, name, force_refresh=True)
+    # Web fetch renders pages with the Playwright SYNC API — offload off the
+    # event loop or it raises "Sync API inside the asyncio loop".
+    tool = await run_in_threadpool(
+        dynamic_agent_service.lookup_or_fetch_docs, db, name, force_refresh=True
+    )
     if not tool:
         raise HTTPException(
             status_code=404,
@@ -675,7 +687,10 @@ async def import_tool(
         )
 
     try:
-        result = dynamic_agent_service.import_tool_from_source(
+        # Runs headless rendering (Playwright SYNC API) + LLM extraction, which
+        # MUST NOT run on the asyncio event loop. Offload to a worker thread.
+        result = await run_in_threadpool(
+            dynamic_agent_service.import_tool_from_source,
             db, name, source_url=spec_url, file_bytes=file_bytes,
             filename=filename, content_type=file_ct, user_id=current_user.id,
         )
@@ -774,6 +789,104 @@ async def refresh_tool_stream(
 
     def event_source():
         # Prime the connection so proxies see bytes immediately.
+        yield ": stream-open\n\n"
+        while True:
+            try:
+                evt = events_q.get(timeout=HEARTBEAT_SECONDS)
+            except queue.Empty:
+                yield f": keepalive {int(time.time())}\n\n"
+                continue
+            if evt is _SENTINEL:
+                if result_box["error"]:
+                    yield (
+                        f"event: error\n"
+                        f"data: {json.dumps({'error': result_box['error']})}\n\n"
+                    )
+                else:
+                    yield (
+                        f"event: done\n"
+                        f"data: {json.dumps(result_box['tool'], default=str)}\n\n"
+                    )
+                break
+            yield f"event: status\ndata: {json.dumps(evt, default=str)}\n\n"
+
+    return StreamingResponse(
+        event_source(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.post("/tools/import/stream")
+async def import_tool_stream(
+    payload: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+):
+    """SSE variant of /tools/import for a URL/spec source.
+
+    Takes a JSON body ({tool, spec_url}) — no multipart, so it sidesteps the
+    boundary pitfalls of file uploads — and streams per-stage progress while
+    the (possibly slow) fetch → render → crawl → parse/extract runs in a worker
+    thread. FILE uploads still go through the multipart /tools/import."""
+    name = (payload.get("tool") or "").strip().lower()
+    spec_url = (payload.get("spec_url") or "").strip() or None
+    if not name:
+        raise HTTPException(status_code=400, detail="`tool` is required")
+    if not spec_url:
+        raise HTTPException(
+            status_code=400,
+            detail="`spec_url` is required (use /tools/import for file uploads).",
+        )
+
+    user_id = current_user.id
+    events_q: "queue.Queue" = queue.Queue()
+    _SENTINEL = object()
+    result_box: Dict[str, Any] = {"tool": None, "error": None}
+
+    def emit_status(step: str, data: Dict[str, Any]) -> None:
+        events_q.put({"step": step, **(data or {})})
+
+    def run_import() -> None:
+        worker_db = SessionLocal()
+        try:
+            tool = dynamic_agent_service.import_tool_from_source(
+                worker_db,
+                name,
+                source_url=spec_url,
+                user_id=user_id,
+                status_callback=emit_status,
+            )
+            if tool is None:
+                result_box["error"] = (
+                    f"Couldn't build a tool from {spec_url}. Make sure it's an "
+                    f"OpenAPI/Swagger spec or a doc page that lists endpoints "
+                    f"+ a base URL."
+                )
+            else:
+                result_box["tool"] = {
+                    "name": tool.name,
+                    "display_name": tool.display_name,
+                    "source": tool.source,
+                    "auth_type": tool.auth_type,
+                    "base_url": tool.base_url,
+                    "endpoint_count": len(tool.endpoints or {}),
+                }
+        except Exception as exc:
+            logger.exception("import stream failed")
+            result_box["error"] = str(exc)
+        finally:
+            worker_db.close()
+            events_q.put(_SENTINEL)
+
+    threading.Thread(target=run_import, daemon=True).start()
+
+    HEARTBEAT_SECONDS = 15
+
+    def event_source():
         yield ": stream-open\n\n"
         while True:
             try:

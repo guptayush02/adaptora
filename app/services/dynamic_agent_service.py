@@ -674,14 +674,25 @@ def _extract_text_from_bytes(
     return text
 
 def _has_api_signals(text: str) -> bool:
-    """Cheap check: does this text actually contain API endpoint definitions
-    (HTTP verbs + paths), vs. being a marketing/index page with none?"""
+    """Cheap check: does this text plausibly document API endpoints, vs. being
+    a pure marketing/index page? Kept lenient — it only decides whether a
+    crawled page CONTRIBUTES its text to the extractor, so false-positives just
+    give the LLM a bit more to read, while false-negatives silently drop real
+    endpoint pages (the worse failure — that's how a whole doc set collapsed to
+    one endpoint)."""
     if not text:
         return False
     low = text.lower()
     verbs = sum(low.count(v) for v in ("get ", "post ", "put ", "patch ", "delete "))
     paths = len(re.findall(r"/[a-z0-9_]+(?:/[a-z0-9_{}]+)+", low))
-    return verbs >= 2 and paths >= 2
+    # Endpoint-ish vocabulary common on REST reference pages that describe calls
+    # in prose/tables rather than as clean "GET /path" lines (e.g. LinkedIn on
+    # Microsoft Learn).
+    kw = sum(low.count(k) for k in (
+        "endpoint", "request", "response", "api.", "/v1/", "/v2/",
+        "parameter", "header", "scope", "https://api",
+    ))
+    return (verbs >= 1 and paths >= 1) or paths >= 3 or kw >= 4
 
 def _render_html(url: str, timeout_ms: int = 20000, settle_ms: int = 1800) -> Optional[str]:
     """Render a URL in headless Chromium and return the post-JavaScript HTML.
@@ -1228,10 +1239,10 @@ class DynamicAgentService:
         self,
         url: str,
         status_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
-        max_pages: int = 25,
+        max_pages: int = 40,
         max_depth: int = 3,
-        time_budget_s: float = 200.0,
-        char_cap: int = 140000,
+        time_budget_s: float = 300.0,
+        char_cap: int = 220000,
     ) -> str:
         """Give it an INDEX/landing URL; it recursively renders and crawls the
         whole same-section doc tree (headless, server-side) and returns the
@@ -1353,7 +1364,7 @@ class DynamicAgentService:
         user: str,
         *,
         num_predict: int = 8192,
-        num_ctx: int = 32768,
+        num_ctx: int = settings.OLLAMA_EXTRACT_NUM_CTX,
         db: Optional[Session] = None,
         user_id: Optional[int] = None,
         status_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
@@ -1478,7 +1489,10 @@ class DynamicAgentService:
         )
         try:
             out = self._extract_json_smart(
-                system, user, num_predict=128, num_ctx=4096, db=db, user_id=user_id,
+                # Same window as doc extraction so this follow-up call doesn't
+                # force an Ollama model reload mid-import.
+                system, user, num_predict=128,
+                num_ctx=settings.OLLAMA_EXTRACT_NUM_CTX, db=db, user_id=user_id,
             )
         except Exception:
             return {}
@@ -1536,9 +1550,30 @@ class DynamicAgentService:
                 except Exception:
                     pass
 
-        CHUNK = 28000
-        text = text[:140000]
-        chunks = [text[i:i + CHUNK] for i in range(0, len(text), CHUNK)] or [text]
+        # Size each chunk + its output to FIT the extraction context window
+        # (chars ≈ 3× tokens), leaving room for the system prompt. This keeps a
+        # 7B model under 8GB at the default num_ctx (8192) instead of swapping
+        # to death on a 32k window — the cap scales up automatically on a
+        # machine configured with a larger OLLAMA_EXTRACT_NUM_CTX.
+        extract_ctx = settings.OLLAMA_EXTRACT_NUM_CTX
+        # Reserve generous output room so a chunk's endpoint JSON is NEVER
+        # truncated, then make each chunk deliberately SMALL: fewer endpoints
+        # per chunk → the model reliably emits every one and pays full attention
+        # to each. More chunks = slower, but the goal here is completeness.
+        out_tokens = min(4096, max(2048, extract_ctx // 2))
+        # Cap the input slice well under the window; small chunks are the point.
+        chunk_tokens = max(800, min(2200, extract_ctx - out_tokens - 1800))
+        CHUNK = chunk_tokens * 3
+        # Overlap consecutive chunks so an endpoint straddling a boundary is
+        # still fully present in at least one chunk (otherwise both halves miss
+        # it). ~20% overlap is plenty.
+        OVERLAP = CHUNK // 5
+        step = max(1, CHUNK - OVERLAP)
+        # Process the WHOLE crawled doc — every endpoint must be seen. Each
+        # chunk fits the context window, so memory stays bounded no matter how
+        # many chunks; only wall-clock time grows with doc size. The upstream
+        # crawl's char_cap is the real ceiling.
+        chunks = [text[i:i + CHUNK] for i in range(0, len(text), step)] or [text]
         merged_eps: Dict[str, Any] = {}
         base_url = auth_type = docs_url = None
         auth_config: Dict[str, Any] = {}
@@ -1552,13 +1587,27 @@ class DynamicAgentService:
                 f"DOC CONTENT (part {idx + 1} of {len(chunks)}):\n\n{ch}\n\n"
                 f"Return the JSON envelope described in the system prompt."
             )
-            try:
-                part = self._extract_json_smart(
-                    _DOCS_EXTRACT_SYSTEM, user_msg,
-                    num_predict=8192, db=db, user_id=user_id,
-                    status_callback=status_callback,
-                )
-            except Exception:
+            # Retry once on a transient failure so a single hiccup doesn't
+            # silently drop a whole chunk's endpoints.
+            part = None
+            for attempt in range(2):
+                try:
+                    part = self._extract_json_smart(
+                        _DOCS_EXTRACT_SYSTEM, user_msg,
+                        num_predict=out_tokens, num_ctx=extract_ctx,
+                        db=db, user_id=user_id,
+                        status_callback=status_callback,
+                    )
+                    break
+                except Exception:
+                    if attempt == 0:
+                        _emit("chunk_retry", {"chunk": idx + 1, "of": len(chunks)})
+                        continue
+                    logger.warning(
+                        "extraction chunk %d/%d failed twice; skipping",
+                        idx + 1, len(chunks),
+                    )
+            if part is None:
                 continue
             part = self._normalize_extracted_docs(part or {}, tool_name)
             for k, v in (part.get("endpoints") or {}).items():
@@ -1604,6 +1653,169 @@ class DynamicAgentService:
         self._apply_credential_labels(result, tool_name, text, db, user_id)
         return result
 
+    def _upsert_tool(
+        self,
+        db: Session,
+        tool_name: str,
+        extracted: Dict[str, Any],
+        source_label: str,
+    ) -> "ToolDefinition":
+        """Insert/update a ToolDefinition from an extracted dict. Idempotent, so
+        it's safe to call repeatedly for the incremental per-page crawl saves."""
+        fields = dict(
+            display_name=extracted.get("display_name") or tool_name.title(),
+            base_url=extracted.get("base_url"),
+            auth_type=extracted.get("auth_type") or "API_KEY",
+            auth_config=extracted.get("auth_config") or {},
+            endpoints=extracted.get("endpoints") or {},
+            rate_limits=extracted.get("rate_limits"),
+            examples=extracted.get("examples"),
+            quirks=extracted.get("quirks"),
+            docs_url=extracted.get("docs_url"),
+            source=source_label,
+        )
+        row = db.query(ToolDefinition).filter(ToolDefinition.name == tool_name).first()
+        try:
+            if row:
+                for k, v in fields.items():
+                    setattr(row, k, v)
+                row.last_fetched_at = datetime.utcnow()
+            else:
+                row = ToolDefinition(name=tool_name, **fields)
+                db.add(row)
+            db.commit()
+        except StaleDataError:
+            db.rollback()
+            db.query(ToolDefinition).filter(ToolDefinition.name == tool_name).delete()
+            db.commit()
+            row = ToolDefinition(name=tool_name, **fields)
+            db.add(row)
+            db.commit()
+        db.refresh(row)
+        return row
+
+    def _crawl_extract_per_page(
+        self,
+        db: Session,
+        tool_name: str,
+        start_url: str,
+        *,
+        user_id: Optional[int] = None,
+        status_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+        max_pages: int = 60,
+        max_depth: int = 3,
+        time_budget_s: float = 600.0,
+    ) -> Optional[Dict[str, Any]]:
+        """Crawl a doc section and extract each page's endpoint(s) INDIVIDUALLY,
+        merging + saving to the DB incrementally — instead of concatenating
+        everything into one blob and extracting once.
+
+        Why: doc sites put ~one endpoint per page. Extracting page-by-page gives
+        the (small, local) model a focused task per call, so it captures every
+        endpoint reliably; the blob approach drops most of them. Saving after
+        each page means partial progress persists (and the tool's endpoint count
+        grows live) even if the crawl is stopped or times out. Loops over the
+        whole discovered section, bounded by max_pages / time."""
+        from urllib.parse import urlsplit
+        from bs4 import BeautifulSoup
+        import time as _time
+
+        def _emit(step: str, data: Optional[Dict[str, Any]] = None) -> None:
+            if status_callback:
+                try:
+                    status_callback(step, data or {})
+                except Exception:
+                    pass
+
+        base = urlsplit(start_url)
+        section = base.path.rstrip("/") or "/"
+        deadline = _time.time() + time_budget_s
+        visited: set = set()
+        queue: List[Tuple[str, int]] = [(start_url, 0)]
+        rendered = 0
+        acc: Dict[str, Any] = {
+            "endpoints": {}, "base_url": None, "auth_type": None,
+            "auth_config": {}, "docs_url": None, "rate_limits": None,
+            "examples": None, "quirks": [],
+        }
+        saved_count = -1
+
+        while queue and rendered < max_pages and _time.time() < deadline:
+            cur, depth = queue.pop(0)
+            if cur in visited:
+                continue
+            visited.add(cur)
+            html = _render_html(cur, settle_ms=1200)
+            rendered += 1
+            if not html:
+                continue
+            text = BeautifulSoup(html, "html.parser").get_text("\n")
+
+            if cur == start_url or _has_api_signals(text):
+                _emit("extracting_page", {"url": cur, "rendered": rendered})
+                # Focused per-page extraction (no status_callback → don't spam
+                # per-page chunk counts).
+                part = self._extract_from_doc_text(
+                    text, tool_name, cur, db=db, user_id=user_id,
+                )
+                if part:
+                    for k, v in (part.get("endpoints") or {}).items():
+                        acc["endpoints"][k] = (
+                            self._merge_endpoint_def(acc["endpoints"][k], v)
+                            if k in acc["endpoints"]
+                            else v
+                        )
+                    if (not acc["base_url"] and part.get("base_url")
+                            and not _is_placeholder_url(part["base_url"])):
+                        acc["base_url"] = part["base_url"]
+                    if (not acc["auth_type"] or acc["auth_type"] == "API_KEY") and part.get("auth_type"):
+                        acc["auth_type"] = part["auth_type"]
+                        if part.get("auth_config"):
+                            acc["auth_config"] = part["auth_config"]
+                    if not acc["docs_url"] and part.get("docs_url"):
+                        acc["docs_url"] = part["docs_url"]
+                    if not acc["rate_limits"] and part.get("rate_limits"):
+                        acc["rate_limits"] = part["rate_limits"]
+                    if not acc["examples"] and part.get("examples"):
+                        acc["examples"] = part["examples"]
+                    for q in (part.get("quirks") or []):
+                        if q not in acc["quirks"]:
+                            acc["quirks"].append(q)
+
+                    # Incremental save once we have something callable, so the
+                    # endpoints persist as they're found.
+                    if (acc["base_url"] and acc["endpoints"]
+                            and len(acc["endpoints"]) != saved_count):
+                        self._upsert_tool(
+                            db, tool_name,
+                            {**acc, "display_name": tool_name.title(),
+                             "quirks": acc["quirks"] or None},
+                            "user-import",
+                        )
+                        saved_count = len(acc["endpoints"])
+                    _emit("endpoints_so_far", {
+                        "count": len(acc["endpoints"]), "pages": rendered,
+                    })
+
+            # Harvest more same-section pages (BFS), best-looking links first.
+            if depth < max_depth:
+                links = self._extract_links_from_html(html, cur, max_links=200)
+                cands = {
+                    l for l in links
+                    if urlsplit(l).netloc == base.netloc
+                    and urlsplit(l).path.rstrip("/").startswith(section)
+                    and l not in visited
+                }
+                for l in sorted(cands, key=self._score_api_link, reverse=True):
+                    queue.append((l, depth + 1))
+
+        if not acc["endpoints"] and not acc["base_url"]:
+            return None
+        acc["display_name"] = tool_name.title()
+        acc["quirks"] = acc["quirks"] or None
+        _emit("crawl_done", {"endpoints": len(acc["endpoints"]), "pages": rendered})
+        return acc
+
     def import_tool_from_source(
         self,
         db: Session,
@@ -1646,6 +1858,9 @@ class DynamicAgentService:
 
         # ---- 1. Obtain raw text (ANY format: PDF/Word/HTML/JSON/YAML/text) -
         raw_text: str = ""
+        # When the source is a JS-heavy HTML doc SITE (not a spec/file), we
+        # extract it page-by-page below instead of as one blob.
+        per_page = False
         origin_url = source_url or (filename or "uploaded-file")
         if source_url:
             # SSRF guard: we fetch this URL server-side, so block anything that
@@ -1677,10 +1892,9 @@ class DynamicAgentService:
                 head = raw_text.lstrip()[:200].lower()
                 is_specish = head[:1] == "{" or "openapi" in head or "swagger" in head
                 if not is_specish and not _has_api_signals(raw_text):
-                    _emit("rendering", {"url": source_url})
-                    rendered = self._render_and_crawl(source_url, status_callback=status_callback)
-                    if rendered and len(rendered) > len(raw_text):
-                        raw_text = rendered
+                    # JS-heavy doc site → extract each page individually below
+                    # (per-page is far more complete than one big blob).
+                    per_page = True
             except Exception as exc:
                 _emit("error", {"reason": f"could not fetch source_url: {exc}"})
                 logger.warning(f"import fetch failed for {tool_name}: {exc}")
@@ -1721,16 +1935,27 @@ class DynamicAgentService:
                 source_label = "user-import+openapi"
                 _emit("openapi_parsed", {"endpoints": len(parsed["endpoints"])})
 
-        # ---- 3. Fallback: LLM extraction over the supplied doc text -------
-        # Chunked + merged so a large crawled doc tree contributes ALL its
-        # endpoints, not just the first prompt's worth.
+        # ---- 3. Fallback: LLM extraction over the supplied doc -------------
         if extracted is None:
-            extracted = self._extract_from_doc_text(
-                raw_text, tool_name, origin_url,
-                db=db, user_id=user_id, status_callback=status_callback,
-            )
+            if per_page and source_url:
+                # JS-heavy doc SITE → crawl + extract each page individually,
+                # saving incrementally. Captures every endpoint (vs. a blob that
+                # drops most) and persists partial progress.
+                _emit("crawling_pages", {"url": source_url})
+                extracted = self._crawl_extract_per_page(
+                    db, tool_name, source_url,
+                    user_id=user_id, status_callback=status_callback,
+                )
+                source_label = "user-import"
+            else:
+                # A single doc/file (or text that already has API signals) —
+                # chunk + merge it.
+                extracted = self._extract_from_doc_text(
+                    raw_text, tool_name, origin_url,
+                    db=db, user_id=user_id, status_callback=status_callback,
+                )
             if extracted is None:
-                _emit("error", {"reason": "LLM could not extract endpoints from the doc"})
+                _emit("error", {"reason": "Couldn't extract any endpoints from the doc"})
                 return None
 
         if not extracted or not extracted.get("base_url"):
@@ -1932,11 +2157,11 @@ class DynamicAgentService:
             merged_results = merged_results + new_results
             _emit("discovered_fetched", {"new_pages": len(new_results)})
 
-        # Build a large prompt to maximise endpoint coverage. The budget is
-        # generous so request-body sections on deep reference pages actually
-        # make it in — body fields are the first thing a small budget drops.
+        # Collect doc text for extraction. Kept moderate so a low-RAM host
+        # doesn't choke — _extract_from_doc_text chunks this to fit the model's
+        # context window anyway. (OpenAPI specs, when found, skip this path.)
         chunks: List[str] = []
-        char_budget = 100000
+        char_budget = 60000
         for r in merged_results[:20]:
             title = (r.get("title") or "").strip()
             url = (r.get("href") or "").strip()

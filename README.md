@@ -113,6 +113,11 @@ Useful for development. You'll need Python 3.11+, Node 18+, Ollama, and Redis ru
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
+# Install the headless browser used to render JS-heavy doc sites (one-time).
+# Docker does this automatically; for a local install you must run it yourself,
+# or doc rendering fails with "Executable doesn't exist … run playwright install".
+playwright install chromium
+
 # Pull the LLM
 ollama pull qwen2.5-coder:3b
 

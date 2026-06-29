@@ -476,6 +476,71 @@ async function streamRefreshTool({ tool, onStatus, onDone, onError }) {
   throw new Error('Refresh stream closed before completion');
 }
 
+// SSE client for /api/dynamic-agent/tools/import/stream — URL/spec import with
+// live progress. JSON body (no multipart), so it avoids the file-upload
+// boundary pitfalls AND shows each stage during a slow extraction.
+async function streamImportTool({ tool, specUrl, onStatus, onDone, onError }) {
+  const token = localStorage.getItem('token');
+  const response = await fetch(
+    `${API_BASE_URL}/api/dynamic-agent/tools/import/stream`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ tool, spec_url: specUrl }),
+    }
+  );
+
+  if (!response.ok || !response.body) {
+    const text = await response.text().catch(() => '');
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let sep;
+    while ((sep = buffer.indexOf('\n\n')) !== -1) {
+      const raw = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      if (!raw || raw.startsWith(':')) continue;
+      let event = 'message';
+      const dataLines = [];
+      for (const line of raw.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim();
+        else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+      }
+      if (!dataLines.length) continue;
+      let payload;
+      try {
+        payload = JSON.parse(dataLines.join('\n'));
+      } catch {
+        payload = dataLines.join('\n');
+      }
+      if (event === 'status') {
+        onStatus?.(payload);
+      } else if (event === 'done') {
+        onDone?.(payload);
+        return payload;
+      } else if (event === 'error') {
+        const err = new Error(payload?.error || 'import pipeline error');
+        onError?.(err);
+        throw err;
+      }
+    }
+  }
+  throw new Error('Import stream closed before completion');
+}
+
 // Dynamic Agent — Nango-free, runs entirely on the local LLM + raw HTTP.
 export const dynamicAgentService = {
   turn: (prompt, language = 'en', sourceUrl = '') =>
@@ -504,7 +569,10 @@ export const dynamicAgentService = {
     if (sourceUrl) form.append('source_url', sourceUrl);
     return api
       .post('/api/dynamic-agent/turn/upload', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        // Must be undefined (not 'multipart/form-data') so axios/the browser
+        // add the required `boundary=…`. A fixed value omits the boundary and
+        // the server can't parse the form → 422.
+        headers: { 'Content-Type': undefined },
       })
       .then((r) => r.data);
   },
@@ -532,11 +600,14 @@ export const dynamicAgentService = {
     if (file) form.append('file', file);
     return api
       .post('/api/dynamic-agent/tools/import', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        // undefined → axios/browser set `multipart/form-data; boundary=…`.
+        // A fixed 'multipart/form-data' omits the boundary → server 422.
+        headers: { 'Content-Type': undefined },
       })
       .then((r) => r.data);
   },
   streamRefreshTool: streamRefreshTool,
+  streamImportTool: streamImportTool,
   listLogs: ({ limit = 50, offset = 0, tool = '', source = '', status = '' } = {}) =>
     api
       .get('/api/dynamic-agent/logs', {

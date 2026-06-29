@@ -101,6 +101,19 @@ function statusMessage(evt) {
   if (evt?.step === 'saved') {
     return `Saved · ${evt.endpoint_count ?? 0} endpoints`;
   }
+  // Per-page incremental import progress.
+  if (evt?.step === 'extracting_page') {
+    return `Reading page ${evt.rendered ?? ''}…`;
+  }
+  if (evt?.step === 'endpoints_so_far') {
+    return `Extracted ${evt.count ?? 0} endpoints so far (page ${evt.pages ?? ''})…`;
+  }
+  if (evt?.step === 'crawl_done') {
+    return `Done · ${evt.endpoints ?? 0} endpoints from ${evt.pages ?? 0} pages`;
+  }
+  if (evt?.step === 'crawling_pages') {
+    return 'Crawling doc pages…';
+  }
   return label;
 }
 
@@ -735,11 +748,26 @@ function ToolsPage() {
       setImporting(true);
       const t = toast.loading(`Importing ${name}…`);
       try {
-        const res = await dynamicAgentService.importTool({
-          tool: name,
-          specUrl: importUrl.trim(),
-          file: importFile,
-        });
+        let res;
+        if (importUrl.trim() && !importFile) {
+          // URL/spec import → streamed: JSON body (no multipart), live
+          // per-stage progress, and it can run for a while on a slow host
+          // without looking "stuck".
+          res = await dynamicAgentService.streamImportTool({
+            tool: name,
+            specUrl: importUrl.trim(),
+            onStatus: (evt) => {
+              toast.loading(`${name}: ${statusMessage(evt)}`, { id: t });
+            },
+          });
+        } else {
+          // File upload → multipart (the browser sets the boundary).
+          res = await dynamicAgentService.importTool({
+            tool: name,
+            specUrl: importUrl.trim(),
+            file: importFile,
+          });
+        }
         toast.success(
           `Imported ${res.name} · ${res.endpoint_count} endpoints (${res.source})`,
           { id: t }
