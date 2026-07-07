@@ -772,7 +772,7 @@ def build_mcp_server() -> Server:
             if name == _META_RUN_ACTION:
                 return await _call_run_action(db, arguments, server=server, progress_token=progress_token, request_id=request_id)
             # Dynamic per-endpoint tool: <tool>_<endpoint>
-            return await _call_endpoint_tool(db, name, arguments)
+            return await _call_endpoint_tool(db, name, arguments, server=server, progress_token=progress_token, request_id=request_id)
         except Exception as exc:
             logger.exception(f"MCP tool {name!r} crashed")
             return _json_block({"error": str(exc), "tool": name})
@@ -1014,7 +1014,13 @@ async def _call_run_action(
 
 
 async def _call_endpoint_tool(
-    db, name: str, args: Dict[str, Any]
+    db,
+    name: str,
+    args: Dict[str, Any],
+    *,
+    server: Optional[Server] = None,
+    progress_token: Any = None,
+    request_id: Any = None,
 ) -> List[TextContent]:
     """Dispatch a per-endpoint MCP tool call. We don't know which token
     in ``name`` separates the tool from the endpoint — try the longest
@@ -1041,13 +1047,30 @@ async def _call_endpoint_tool(
             f"Using {tool}, perform the `{endpoint}` action. "
             f"Context: {raw_prompt}. Arguments: {json.dumps(args)}."
         )
-        result = await asyncio.to_thread(
-            dynamic_agent_service.run_turn,
-            db,
-            user_id=user_id,
-            prompt=synthesized,
-            language="en",
-        )
+        loop = asyncio.get_event_loop()
+        cb, queue = _make_progress_callback(server, loop) if server else (None, asyncio.Queue())
+        emitter = asyncio.create_task(
+            _progress_emitter_task(server, queue, progress_token, request_id=request_id)
+        ) if server else None
+        try:
+            result = await asyncio.to_thread(
+                dynamic_agent_service.run_turn,
+                db,
+                user_id=user_id,
+                prompt=synthesized,
+                language="en",
+                status_callback=cb,
+                # Same reasoning as run_action: skip the extra local-LLM
+                # summary round-trip — the calling assistant summarizes the
+                # raw response, and this call already pays for identify +
+                # plan on a slow model, so shaving the third call is what
+                # keeps this under the MCP client's timeout.
+                summarize=False,
+            )
+        finally:
+            await queue.put(None)
+            if emitter:
+                await emitter
     else:
         # FAST PATH: tool + endpoint are already known, so skip the LLM
         # entirely (no identify / plan / summarize). This is what keeps

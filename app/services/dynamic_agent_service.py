@@ -712,15 +712,39 @@ def _render_html(url: str, timeout_ms: int = 20000, settle_ms: int = 1800) -> Op
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(
-                args=["--no-sandbox", "--disable-dev-shm-usage"]
+                args=[
+                    "--no-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--disable-extensions",
+                    # Cap Chromium's memory — critical on an 8GB box where the
+                    # 7B model already holds ~5GB; an unbounded renderer is what
+                    # pushed the machine into swap/crash.
+                    "--js-flags=--max-old-space-size=512",
+                ]
             )
             try:
                 page = browser.new_page(
                     user_agent="Mozilla/5.0 (compatible; Adaptora-DocBot/1.0)"
                 )
+                # We only need the DOM TEXT — block images / media / fonts /
+                # stylesheets so Chromium uses far less RAM and renders faster.
+                # (Content lives in the DOM regardless of CSS/images.)
+                try:
+                    page.route(
+                        "**/*",
+                        lambda route: (
+                            route.abort()
+                            if route.request.resource_type
+                            in ("image", "media", "font", "stylesheet")
+                            else route.continue_()
+                        ),
+                    )
+                except Exception:
+                    pass
                 page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
                 try:
-                    page.wait_for_load_state("networkidle", timeout=6000)
+                    page.wait_for_load_state("networkidle", timeout=4000)
                 except Exception:
                     pass
                 page.wait_for_timeout(settle_ms)
@@ -1702,9 +1726,9 @@ class DynamicAgentService:
         *,
         user_id: Optional[int] = None,
         status_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
-        max_pages: int = 60,
+        max_pages: int = 40,
         max_depth: int = 3,
-        time_budget_s: float = 600.0,
+        time_budget_s: float = 360.0,
     ) -> Optional[Dict[str, Any]]:
         """Crawl a doc section and extract each page's endpoint(s) INDIVIDUALLY,
         merging + saving to the DB incrementally — instead of concatenating
@@ -1728,7 +1752,15 @@ class DynamicAgentService:
                     pass
 
         base = urlsplit(start_url)
-        section = base.path.rstrip("/") or "/"
+        # Crawl the PARENT section, not just the exact URL's subtree — endpoint
+        # reference pages usually live in SIBLING areas (e.g. .../linkedin/shared/
+        # next to the given .../linkedin/consumer/). Restricting to the exact
+        # path misses them, which is how a whole API collapsed to ~1 endpoint.
+        # Kept to a meaningful depth (≥2 path segments) so we don't crawl the
+        # entire host. _score_api_link still crawls API-looking pages first.
+        full_section = base.path.rstrip("/") or "/"
+        parent = full_section.rsplit("/", 1)[0]
+        section = parent if parent.count("/") >= 2 else full_section
         deadline = _time.time() + time_budget_s
         visited: set = set()
         queue: List[Tuple[str, int]] = [(start_url, 0)]
@@ -1739,24 +1771,79 @@ class DynamicAgentService:
             "examples": None, "quirks": [],
         }
         saved_count = -1
+        headless_renders = 0  # cap Chromium renders to protect 8GB memory
+
+        # Seed the queue with sitemap URLs — this is the primary way we discover
+        # all endpoint pages when the user gives only the index/overview URL.
+        # sitemap.xml lists every page without needing BFS link-following.
+        base_origin = f"{base.scheme}://{base.netloc}"
+        sitemap_urls = self._fetch_sitemap_urls(base_origin, start_url, tool_name, max_urls=60)
+        for su in sitemap_urls:
+            if urlsplit(su).netloc == base.netloc and su not in visited:
+                queue.append((su, 1))
 
         while queue and rendered < max_pages and _time.time() < deadline:
             cur, depth = queue.pop(0)
             if cur in visited:
                 continue
             visited.add(cur)
-            html = _render_html(cur, settle_ms=1200)
+            # MEMORY-SAFE FETCH: try plain HTTP first (no browser = no spike).
+            # Only fall back to headless Chromium when the plain fetch is a
+            # sparse SPA shell. On an 8GB box the 7B model already holds ~5GB,
+            # so launching Chromium for every page is what pushed it into
+            # swap/crash — most doc pages are server-rendered enough to skip it.
+            html = None
+            try:
+                r = requests.get(
+                    cur, timeout=20,
+                    headers={"User-Agent": "Adaptora-DocImport/1.0"},
+                )
+                ct = r.headers.get("Content-Type", "").lower()
+                if "html" in ct or "<" in (r.text[:200] or ""):
+                    html = r.text
+            except Exception:
+                html = None
+            text = (
+                BeautifulSoup(html, "html.parser").get_text("\n") if html else ""
+            )
+            # Always render the START URL — its JS sidebar/TOC is the primary
+            # source of links to all individual endpoint pages. Skipping this is
+            # what made Microsoft Learn / LinkedIn give only 1 endpoint (the
+            # static HTML shell has no nav links, only the rendered DOM does).
+            # For subsequent pages render when sparse or no API signals, capped
+            # at 8 total Chromium launches (7B model already holds ~5GB on 8GB).
+            _needs_render = (
+                cur == start_url
+                or not text
+                or len(text) < 1500
+                or not _has_api_signals(text)
+            )
+            if _needs_render and headless_renders < 8:
+                rendered_html = _render_html(cur, settle_ms=2000)
+                if rendered_html:
+                    html = rendered_html
+                    text = BeautifulSoup(html, "html.parser").get_text("\n")
+                    headless_renders += 1
             rendered += 1
+            has_signals = _has_api_signals(text)
+            logger.info(
+                "[crawl] page %d/%d url=%s text_len=%d has_signals=%s",
+                rendered, max_pages, cur, len(text), has_signals,
+            )
             if not html:
                 continue
-            text = BeautifulSoup(html, "html.parser").get_text("\n")
 
-            if cur == start_url or _has_api_signals(text):
+            if cur == start_url or has_signals:
                 _emit("extracting_page", {"url": cur, "rendered": rendered})
                 # Focused per-page extraction (no status_callback → don't spam
                 # per-page chunk counts).
                 part = self._extract_from_doc_text(
                     text, tool_name, cur, db=db, user_id=user_id,
+                )
+                ep_count = len((part or {}).get("endpoints") or {})
+                logger.info(
+                    "[crawl] extracted %d endpoints from %s (base_url=%s)",
+                    ep_count, cur, (part or {}).get("base_url"),
                 )
                 if part:
                     for k, v in (part.get("endpoints") or {}).items():
@@ -1786,6 +1873,10 @@ class DynamicAgentService:
                     # endpoints persist as they're found.
                     if (acc["base_url"] and acc["endpoints"]
                             and len(acc["endpoints"]) != saved_count):
+                        logger.info(
+                            "[crawl] incremental save: %d endpoints total",
+                            len(acc["endpoints"]),
+                        )
                         self._upsert_tool(
                             db, tool_name,
                             {**acc, "display_name": tool_name.title(),
@@ -1793,9 +1884,11 @@ class DynamicAgentService:
                             "user-import",
                         )
                         saved_count = len(acc["endpoints"])
-                    _emit("endpoints_so_far", {
-                        "count": len(acc["endpoints"]), "pages": rendered,
-                    })
+            else:
+                logger.info("[crawl] skipping extraction (no API signals): %s", cur)
+            _emit("endpoints_so_far", {
+                "count": len(acc["endpoints"]), "pages": rendered,
+            })
 
             # Harvest more same-section pages (BFS), best-looking links first.
             if depth < max_depth:
@@ -1803,7 +1896,10 @@ class DynamicAgentService:
                 cands = {
                     l for l in links
                     if urlsplit(l).netloc == base.netloc
-                    and urlsplit(l).path.rstrip("/").startswith(section)
+                    # Only apply section filter for BFS links found in deep crawls
+                    # (depth >= 1 means we already broadened via sitemap or index links).
+                    # At depth 0 (the start page) allow any same-domain doc links.
+                    and (depth == 0 or urlsplit(l).path.rstrip("/").startswith(section))
                     and l not in visited
                 }
                 for l in sorted(cands, key=self._score_api_link, reverse=True):
@@ -1891,9 +1987,13 @@ class DynamicAgentService:
                 # Chromium and crawl its sub-pages (all server-side, invisible).
                 head = raw_text.lstrip()[:200].lower()
                 is_specish = head[:1] == "{" or "openapi" in head or "swagger" in head
-                if not is_specish and not _has_api_signals(raw_text):
-                    # JS-heavy doc site → extract each page individually below
-                    # (per-page is far more complete than one big blob).
+                if not is_specish:
+                    # ANY HTML doc URL → crawl + extract each page individually.
+                    # (The old `and not _has_api_signals(raw_text)` gate skipped
+                    # the crawl whenever the first plain fetch already showed API
+                    # signals — so it extracted only the un-rendered landing page
+                    # and came back near-empty. A spec is still parsed natively
+                    # below; this only affects HTML docs.)
                     per_page = True
             except Exception as exc:
                 _emit("error", {"reason": f"could not fetch source_url: {exc}"})
@@ -2344,7 +2444,17 @@ class DynamicAgentService:
             candidates.append(f"{parts.scheme}://{parts.netloc}/sitemap.xml")
         candidates.append(f"{base_origin}/sitemap.xml")
 
+        def _extract_locs(xml_text: str) -> List[str]:
+            return [l.strip() for l in re.findall(r"<loc>([^<]+)</loc>", xml_text)]
+
+        def _is_sitemap_index(xml_text: str) -> bool:
+            return "<sitemapindex" in xml_text or "<sitemap>" in xml_text
+
+        fetched: set = set()
         for sitemap_url in dict.fromkeys(candidates):
+            if sitemap_url in fetched:
+                continue
+            fetched.add(sitemap_url)
             try:
                 resp = requests.get(
                     sitemap_url,
@@ -2353,29 +2463,61 @@ class DynamicAgentService:
                 )
                 if resp.status_code != 200:
                     continue
-                # Extract all <loc> entries from the sitemap XML
-                locs = re.findall(r"<loc>([^<]+)</loc>", resp.text)
+                locs = _extract_locs(resp.text)
                 if not locs:
                     continue
-                # Filter to API reference pages and score them
+
+                # Sitemap INDEX (e.g. Microsoft Learn) — recurse into child
+                # sitemaps that look relevant to the docs_url path.
+                if _is_sitemap_index(resp.text):
+                    doc_path = urlsplit(docs_url or "").path.lower() if docs_url else ""
+                    # Pick child sitemaps whose URL contains a hint of the doc path
+                    # segment (e.g. "linkedin" or "en-us").
+                    path_hint = doc_path.strip("/").split("/")[0] if doc_path else ""
+                    child_sitemaps = [
+                        l for l in locs
+                        if (not path_hint or path_hint in l.lower())
+                        and l not in fetched
+                    ] or [l for l in locs if l not in fetched]  # fallback: all children
+                    page_locs: List[str] = []
+                    for child_url in child_sitemaps[:5]:  # limit child fetches
+                        fetched.add(child_url)
+                        try:
+                            cr = requests.get(child_url, timeout=8.0,
+                                              headers={"User-Agent": "Adaptora/1.0"})
+                            if cr.status_code == 200:
+                                page_locs.extend(_extract_locs(cr.text))
+                        except Exception:
+                            pass
+                    locs = page_locs
+
+                # Score and filter to API-looking pages on the same host
+                base_netloc = urlsplit(base_origin).netloc
                 scored = []
                 for loc in locs:
                     loc = loc.strip()
+                    if urlsplit(loc).netloc != base_netloc:
+                        continue
                     if self._SKIP_PATH_SIGNALS.search(loc):
                         continue
                     if self._NON_HTML_EXT.search(loc):
                         continue
+                    # When docs_url has a specific path, keep only same-subtree pages
+                    if docs_url:
+                        doc_section = urlsplit(docs_url).path.rstrip("/")
+                        if doc_section and not urlsplit(loc).path.startswith(doc_section.rsplit("/", 1)[0]):
+                            continue
                     scored.append((self._score_api_link(loc), loc))
                 scored.sort(key=lambda x: -x[0])
                 result = [url for _, url in scored[:max_urls]]
                 if result:
                     logger.info(
-                        f"Sitemap {sitemap_url} yielded {len(result)} "
-                        f"API reference URLs for {tool_name}"
+                        "Sitemap %s yielded %d API reference URLs for %s",
+                        sitemap_url, len(result), tool_name,
                     )
                     return result
             except Exception as exc:
-                logger.debug(f"sitemap fetch failed for {sitemap_url}: {exc}")
+                logger.debug("sitemap fetch failed for %s: %s", sitemap_url, exc)
         return []
 
     def _discover_linked_doc_pages(
@@ -4521,19 +4663,43 @@ class DynamicAgentService:
             else set()
         )
 
+        # MCP input schemas type every field as "string" (we have no rich
+        # type info), so clients send nested structures as JSON strings —
+        # e.g. LinkedIn's `specificContent`. APIs expect real nested
+        # objects, so coerce any JSON-looking string back into a dict/list
+        # before building the request. Generic — no per-tool handling.
+        def _coerce(value: Any) -> Any:
+            if isinstance(value, str):
+                s = value.strip()
+                if s[:1] in ("{", "["):
+                    try:
+                        return json.loads(s)
+                    except (ValueError, TypeError):
+                        try:
+                            # Schemas document examples with single quotes;
+                            # accept Python-literal style too.
+                            import ast
+
+                            parsed = ast.literal_eval(s)
+                            if isinstance(parsed, (dict, list)):
+                                return parsed
+                        except (ValueError, SyntaxError):
+                            pass
+            return value
+
         params: Dict[str, Any] = {}
         body: Dict[str, Any] = {}
         for k, v in arguments.items():
             if k in used_keys:
                 continue
             if k in declared_params:
-                params[k] = v
+                params[k] = _coerce(v)
             elif k in declared_body:
-                body[k] = v
+                body[k] = _coerce(v)
             elif method in ("GET", "DELETE"):
-                params[k] = v
+                params[k] = _coerce(v)
             else:
-                body[k] = v
+                body[k] = _coerce(v)
 
         # ---- execute (no LLM)
         try:
