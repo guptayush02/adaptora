@@ -3832,6 +3832,15 @@ class DynamicAgentService:
                     _content_hint = _raw.strip()
             except Exception:
                 pass
+        # Simple string fallback — catches "with content X", "saying X", "text: X"
+        # without needing LLM, so content is never lost even if extraction fails.
+        if not _content_hint:
+            _m = re.search(
+                r"(?:with content|saying|text[:\s]+|content[:\s]+|post[:\s]+|message[:\s]+)\s+(.{5,})",
+                prompt, re.IGNORECASE | re.DOTALL,
+            )
+            if _m:
+                _content_hint = _m.group(1).strip().strip("\"'")
         content_block = (
             f"\n\nVERBATIM CONTENT (copy this EXACTLY into the text/message/"
             f"body/content field — never replace with a placeholder):\n{_content_hint}"
@@ -4560,9 +4569,14 @@ class DynamicAgentService:
             last_plan: Dict[str, Any] = {}
             for i, step_def in enumerate(steps):
                 step_prompt = step_def["step"]
+                # For the last step: use original prompt so the planner has the
+                # full user intent + content, not just the decomposed description.
+                # Step descriptions are routing hints, not full instructions.
+                is_last = (i == len(steps) - 1)
+                plan_prompt = prompt if is_last else step_prompt
                 emit("chain_step", index=i + 1, total=len(steps), current=step_prompt)
                 step_plan = self.plan_action(
-                    tool=tool, prompt=step_prompt,
+                    tool=tool, prompt=plan_prompt,
                     db=db, user_id=user_id,
                     context=step_context if step_context else None,
                 )
