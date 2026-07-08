@@ -3944,7 +3944,67 @@ class DynamicAgentService:
 
         if plan.get("endpoint"):
             plan["endpoint"] = _normalize_endpoint(plan["endpoint"])
+
+        # POST-PROCESSING: if we have a content hint and the body has a text/
+        # message field that looks wrong (placeholder, step description, or
+        # empty), replace it with the actual user content. This is deterministic
+        # and runs regardless of how well the LLM followed instructions.
+        if _content_hint and plan.get("body"):
+            plan["body"] = self._inject_content_into_body(
+                plan["body"], _content_hint, prompt
+            )
+
         return plan
+
+    # Keys that typically hold free-text content the user wants to send/post.
+    _CONTENT_KEYS = {
+        "text", "message", "body", "content", "description",
+        "shareCommentary", "caption", "note", "comment", "title",
+    }
+
+    def _inject_content_into_body(
+        self, body: Any, content: str, original_prompt: str
+    ) -> Any:
+        """Recursively scan body dict for text/message fields that contain
+        placeholder or wrong values, and replace with the actual user content."""
+        if isinstance(body, dict):
+            result = {}
+            for k, v in body.items():
+                if k in self._CONTENT_KEYS and isinstance(v, str):
+                    # Replace if value looks like a placeholder or step description
+                    if self._is_placeholder_content(v, original_prompt):
+                        result[k] = content
+                    else:
+                        result[k] = v
+                elif isinstance(v, (dict, list)):
+                    result[k] = self._inject_content_into_body(v, content, original_prompt)
+                else:
+                    result[k] = v
+            return result
+        elif isinstance(body, list):
+            return [self._inject_content_into_body(i, content, original_prompt) for i in body]
+        return body
+
+    _PLACEHOLDER_CONTENT_PATTERNS = re.compile(
+        r"^(post text|your text|hello world|test|sample|placeholder|"
+        r"enter your|type your|your message|your content|your post|"
+        r"<[^>]+>|\{[^}]+\})$",
+        re.IGNORECASE,
+    )
+
+    def _is_placeholder_content(self, value: str, original_prompt: str) -> bool:
+        """True if this string looks like a placeholder or a hallucinated step
+        description rather than the actual user-provided content."""
+        v = value.strip()
+        # Known placeholder patterns
+        if self._PLACEHOLDER_CONTENT_PATTERNS.match(v):
+            return True
+        # Value is a substring of the original prompt's instruction part
+        # (i.e., it's the step description, not the actual content)
+        prompt_lower = original_prompt.lower()
+        if len(v) > 20 and v.lower() in prompt_lower and "post" in prompt_lower:
+            return True
+        return False
 
     def execute_http(
         self,
