@@ -54,7 +54,7 @@ _TOOL_IDENTIFY_SYSTEM = __import__("base64").b64decode("WW91IGFyZSB0aGUgdG9vbC1y
 
 _DOCS_EXTRACT_SYSTEM = __import__("base64").b64decode("WW91IHJlYWQgcmF3IEFQSSBkb2N1bWVudGF0aW9uIHBhZ2VzIGFuZCBleHRyYWN0CnRoZSBzdHJ1Y3R1cmVkIGZpZWxkcyB0aGUgYWdlbnQgbmVlZHMgdG8gY2FsbCB0aGlzIEFQSS4KCk91dHB1dCBTVFJJQ1QgSlNPTiBvbmx5OgoKewogICJiYXNlX3VybCI6ICAgIjxodHRwczovL2FwaS5leGFtcGxlLmNvbT4iLAogICJhdXRoX3R5cGUiOiAgIkFQSV9LRVkiIHwgIkJFQVJFUiIgfCAiT0FVVEgyIiB8ICJPQVVUSDEiIHwgIkJBU0lDIiB8ICJQQVQiLAogICJhdXRoX2NvbmZpZyI6IHsKICAgIC8vIEZpbGwgT05MWSB0aGUgZmllbGRzIHRoYXQgYXBwbHkgdG8gYXV0aF90eXBlOgogICAgImhlYWRlcl9uYW1lIjogICAgICAgICJBdXRob3JpemF0aW9uIiwgICAgICAgLy8gZm9yIEFQSV9LRVkgLyBCRUFSRVIKICAgICJjcmVkZW50aWFsX3ByZWZpeCI6ICAiQmVhcmVyICIsICAgICAgICAgICAgIC8vIGZvciBBUElfS0VZIC8gQkVBUkVSCiAgICAicXVlcnlfcGFyYW0iOiAgICAgICAgImFwaV9rZXkiLCAgICAgICAgICAgICAvLyBhbHQgZm9yIEFQSV9LRVkKICAgICJvYXV0aF9hdXRob3JpemVfdXJsIjoiaHR0cHM6Ly/igKYvYXV0aG9yaXplIiwgLy8gZm9yIE9BVVRIMgogICAgIm9hdXRoX3Rva2VuX3VybCI6ICAgICJodHRwczovL+KApi90b2tlbiIsICAgICAvLyBmb3IgT0FVVEgyCiAgICAiZGVmYXVsdF9zY29wZXMiOiAgICAgInJlcG8scmVhZDp1c2VyIiwgICAgICAvLyBmb3IgT0FVVEgyCiAgICAiY2FsbGJhY2tfdXJsX2hpbnQiOiAgImh0dHBzOi8veW91ci1hcHAuY29tL29hdXRoL2NhbGxiYWNrIiwKICAgICJjcmVkZW50aWFsX2ZpZWxkX292ZXJyaWRlcyI6IHsgICAgICAgICAgICAgIC8vIGZyaWVuZGx5IGxhYmVscyBmb3IgdGhlCiAgICAgICJ1c2VybmFtZSI6IHsibGFiZWwiOiAiS2V5IElEIn0sICAgICAgICAgICAvLyBjcmVkZW50aWFsIGZvcm0gd2hlbiB0aGUKICAgICAgInBhc3N3b3JkIjogeyJsYWJlbCI6ICJLZXkgU2VjcmV0In0gICAgICAgIC8vIGRvY3MgY2FsbCB0aGVtIHNvbWV0aGluZwogICAgfSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgLy8gc3BlY2lmaWMgKHNlZSBydWxlIGJlbG93KQogIH0sCiAgImVuZHBvaW50cyI6IHsKICAgICI8dmVyYl9uYW1lPiI6IHsKICAgICAgIm1ldGhvZCI6ICJHRVQiIHwgIlBPU1QiIHwgIlBVVCIgfCAiUEFUQ0giIHwgIkRFTEVURSIsCiAgICAgICJwYXRoIjogICAiL3BhdGgvdW5kZXIvYmFzZV91cmwiLAogICAgICAiZGVzY3JpcHRpb24iOiAib25lLWxpbmUgc3VtbWFyeSIsCiAgICAgICJwYXJhbXMiOiBudWxsIHwgeyAiPHBhcmFtPiI6ICI8ZGVzY3JpcHRpb24+IiB9LAogICAgICAiYm9keSI6ICAgbnVsbCB8IHsgIjxmaWVsZD4iOiAiPGRlc2NyaXB0aW9uPiIgfQogICAgfSwKICAgICI8bW9yZV92ZXJicz4iOiB7IOKApiB9CiAgfSwKICAicmF0ZV9saW1pdHMiOiBudWxsIHwgewogICAgInJlcXVlc3RzX3Blcl9taW51dGUiOiA8aW50PiB8IG51bGwsCiAgICAicmVxdWVzdHNfcGVyX2hvdXIiOiAgIDxpbnQ+IHwgbnVsbCwKICAgICJyZXF1ZXN0c19wZXJfZGF5IjogICAgPGludD4gfCBudWxsLAogICAgIm5vdGVzIjogICAgICAgICAgICAgICAiPG9uZSBzaG9ydCBzZW50ZW5jZSDigJQgYnVyc3QgbGltaXRzLCB0aWVycywgZXRjLj4iCiAgfSwKICAiZXhhbXBsZXMiOiBudWxsIHwgWwogICAgewogICAgICAibGFuZ3VhZ2UiOiAgICAiY3VybCIgfCAicHl0aG9uIiB8ICJqYXZhc2NyaXB0IiB8ICJzaGVsbCIgfCAiaHR0cCIsCiAgICAgICJ0aXRsZSI6ICAgICAgICI8c2hvcnQgbGFiZWwgZS5nLiAnRmV0Y2ggdXNlcicgPiIsCiAgICAgICJjb2RlIjogICAgICAgICI8c2luZ2xlIGNvZGUgYmxvY2sg4oCUIGtlZXAgdW5kZXIgMzAgbGluZXM+IgogICAgfQogIF0sCiAgInF1aXJrcyI6IG51bGwgfCBbCiAgICAiPHNob3J0IGltcGVyYXRpdmUgcnVsZSB0aGUgY2FsbGVyIE1VU1QgZm9sbG93LCB0YWtlbiBmcm9tIHRoZSBkb2NzPiIKICBdLAogICJkb2NzX3VybCI6ICI8Y2Fub25pY2FsIGRvY3MgVVJMPiIKfQoKUnVsZXM6Ci0gImJhc2VfdXJsIiBNVVNUIGJlIHRoZSBBUEkgaG9zdG5hbWUgKGUuZy4gaHR0cHM6Ly9hcGkuZ2l0aHViLmNvbSksIE5PVAogIHRoZSBodW1hbiBkb2NzIHBhZ2UuCi0gUGF0aHMgYXJlIFJFTEFUSVZFIHRvIGJhc2VfdXJsIChzdGFydCB3aXRoICIvIikuIE5ldmVyIGluY2x1ZGUgdGhlIGhvc3QKICBpbnNpZGUgYHBhdGhgLgotIEV4dHJhY3QgRVZFUlkgZW5kcG9pbnQgeW91IGNhbiBmaW5kIGluIHRoZSBkb2N1bWVudGF0aW9uIOKAlCBkbyBub3QgbGltaXQKICB5b3Vyc2VsZiB0byBhIGZldyAiY29tbW9uIiBvbmVzLiBJbmNsdWRlIGFsbCBHRVQsIFBPU1QsIFBVVCwgUEFUQ0gsIGFuZAogIERFTEVURSBlbmRwb2ludHMgbWVudGlvbmVkLiBUaGUgZ29hbCBpcyBtYXhpbXVtIGNvdmVyYWdlLgotIEZvciBPQVVUSDIgdG9vbHMsIHBvcHVsYXRlIG9hdXRoX2F1dGhvcml6ZV91cmwgKyBvYXV0aF90b2tlbl91cmwgZXZlbgogIGlmIHRoZSBkb2NzIG9ubHkgbWVudGlvbiB0aGVtIGJyaWVmbHkuCi0gY3JlZGVudGlhbF9maWVsZF9vdmVycmlkZXMg4oCUIEFMV0FZUyBzZXQgdGhpcyBmb3IgQkFTSUMgYW5kIEFQSV9LRVkgLyBCRUFSRVIKICAvIFBBVCBhdXRoLiBSZWFkIHRoZSBkb2NzIGFuZCB1c2UgdGhlIEVYQUNUIG5hbWVzIHRoZSBwcm92aWRlciB1c2VzIGZvciBpdHMKICBjcmVkZW50aWFscywgc28gdGhlIHVzZXIgc2VlcyB0aGUgc2FtZSB3b3JkcyBhcyBpbiB0aGUgZGFzaGJvYXJkIGluc3RlYWQgb2YKICBnZW5lcmljICJVc2VybmFtZS9QYXNzd29yZCIuIFRoZSBvdmVycmlkYWJsZSBmaWVsZCBuYW1lcyBhcmU6ICJ1c2VybmFtZSIgKwogICJwYXNzd29yZCIgKEJBU0lDKSwgYW5kICJzZWNyZXQiIChBUElfS0VZIC8gQkVBUkVSIC8gUEFUKS4gRXhhbXBsZXMgZnJvbSByZWFsCiAgZG9jczogUmF6b3JwYXkgQkFTSUMg4oaSIHVzZXJuYW1lPSJLZXkgSUQiLCBwYXNzd29yZD0iS2V5IFNlY3JldCI7IFR3aWxpbyBCQVNJQwogIOKGkiB1c2VybmFtZT0iQWNjb3VudCBTSUQiLCBwYXNzd29yZD0iQXV0aCBUb2tlbiI7IFN0cmlwZSBBUElfS0VZIOKGkgogIHNlY3JldD0iU2VjcmV0IEtleSIuIE9ubHkgZmFsbCBiYWNrIHRvIG9taXR0aW5nIGl0IGlmIHRoZSBkb2NzIGdlbnVpbmVseSB1c2UKICB0aGUgbGl0ZXJhbCB3b3JkcyB1c2VybmFtZS9wYXNzd29yZC4KLSAicmF0ZV9saW1pdHMiIOKAlCBvbmx5IHBvcHVsYXRlIGlmIHRoZSBkb2NzIE1FTlRJT04gc3BlY2lmaWMgbnVtYmVycy4KICBEb24ndCBpbnZlbnQuIElmIHRoZSBkb2NzIG9ubHkgc2F5ICJyYXRlIGxpbWl0cyBhcHBseSIsIHNldCB0byBudWxsLgotICJleGFtcGxlcyIg4oCUIGluY2x1ZGUgMS0zIHJlYWwgY29kZSBibG9ja3MgeW91IHNhdyBpbiB0aGUgZG9jcy4gRG9uJ3QKICBmYWJyaWNhdGU7IGlmIG5vIGNvZGUgc2FtcGxlcyBhcHBlYXJlZCwgc2V0IHRvIG51bGwuCi0gInF1aXJrcyIg4oCUIGNhcHR1cmUgcHJvdmlkZXItc3BlY2lmaWMgUlVMRVMgdGhhdCBjaGFuZ2UgaG93IGEgY2FsbCBtdXN0IGJlCiAgbWFkZSwgYnV0IE9OTFkgaWYgdGhlIGRvY3Mgc3RhdGUgdGhlbS4gRXhhbXBsZXMgb2Ygd2hhdCB0byBsb29rIGZvcjoKICAgIOKAoiBtb25leS9hbW91bnQgdW5pdHMgKCJhbW91bnQgaXMgaW4gcGFpc2UgLyBjZW50cyDigJQgdGhlIHNtYWxsZXN0IGN1cnJlbmN5CiAgICAgIHVuaXQiLCAic2VuZCBhbW91bnRzIGluIGNlbnRzIikKICAgIOKAoiByZXF1aXJlZCBoZWFkZXJzIChpZGVtcG90ZW5jeSBrZXlzLCBBUEkgdmVyc2lvbiBoZWFkZXJzKQogICAg4oCiIHRpbWVzdGFtcC9kYXRlIGZvcm1hdHMgKHVuaXggc2Vjb25kcyB2cyBJU08tODYwMSkKICAgIOKAoiBwYWdpbmF0aW9uIHN0eWxlLCBtYXggcGFnZSBzaXplLCBtYW5kYXRvcnkgcXVlcnkgcGFyYW1zCiAgICDigKIgaWQgZm9ybWF0cywgcmVnaW9uL2hvc3QgcmVxdWlyZW1lbnRzCiAgRWFjaCBxdWlyayBpcyBPTkUgc2hvcnQgaW1wZXJhdGl2ZSBzZW50ZW5jZS4gRG8gTk9UIGludmVudCBydWxlcyB0aGF0IGFyZW4ndAogIGluIHRoZSBkb2NzOyBpZiB0aGVyZSBhcmUgbm9uZSwgc2V0IHF1aXJrcyB0byBudWxsLiBUaGlzIGlzIGNyaXRpY2FsIGZvcgogIHBheW1lbnQgZ2F0ZXdheXMgd2hlcmUgYW1vdW50cyBhcmUgaW4gdGhlIHNtYWxsZXN0IGN1cnJlbmN5IHVuaXQuCi0gRU5EUE9JTlQgQk9ESUVTIEFSRSBNQU5EQVRPUlk6IGZvciBldmVyeSBQT1NUL1BVVC9QQVRDSCBlbmRwb2ludCwgZmlsbCBpdHMKICBgYm9keWAgd2l0aCBFVkVSWSByZXF1ZXN0IGZpZWxkIHRoZSBkb2NzIGxpc3QgKG5hbWUg4oaSIHNob3J0IGRlc2NyaXB0aW9uKS4KICBBbiBlbXB0eS9udWxsIGJvZHkgb24gYSB3cml0ZSBlbmRwb2ludCBpcyBhbG1vc3QgYWx3YXlzIFdST05HIOKAlCBsb29rIGhhcmRlcgogIGluIHRoZSBkb2NzIGZvciB0aGUgcmVxdWVzdCBwYXJhbWV0ZXJzLiBUaGUgYWdlbnQgcmVqZWN0cyBjYWxscyB3aXRoIGZpZWxkcwogIG5vdCBpbiB0aGlzIGxpc3QsIHNvIGNvbXBsZXRlbmVzcyBoZXJlIGlzIHdoYXQgbWFrZXMgd3JpdGUgYWN0aW9ucyB3b3JrLgoKRVhBTVBMRSDigJQgc3R1ZHkgdGhlIHNoYXBlLiBOb3RlIHRoZSBGVUxMWS1wb3B1bGF0ZWQgYm9keSBhbmQgdGhlIGNyZWRlbnRpYWwKbGFiZWxzICh0aGlzIGlzIGEgQkFTSUMtYXV0aCBwYXltZW50IEFQSSk6Cgp7CiAgImJhc2VfdXJsIjogImh0dHBzOi8vYXBpLmFjbWVwYXkuY29tL3YxIiwKICAiYXV0aF90eXBlIjogIkJBU0lDIiwKICAiYXV0aF9jb25maWciOiB7CiAgICAiY3JlZGVudGlhbF9maWVsZF9vdmVycmlkZXMiOiB7CiAgICAgICJ1c2VybmFtZSI6IHsibGFiZWwiOiAiS2V5IElEIn0sCiAgICAgICJwYXNzd29yZCI6IHsibGFiZWwiOiAiS2V5IFNlY3JldCJ9CiAgICB9CiAgfSwKICAiZW5kcG9pbnRzIjogewogICAgImNyZWF0ZV9wYXltZW50X2xpbmsiOiB7CiAgICAgICJtZXRob2QiOiAiUE9TVCIsCiAgICAgICJwYXRoIjogIi9wYXltZW50X2xpbmtzIiwKICAgICAgImRlc2NyaXB0aW9uIjogIkNyZWF0ZSBhIHBheW1lbnQgbGluayIsCiAgICAgICJwYXJhbXMiOiBudWxsLAogICAgICAiYm9keSI6IHsKICAgICAgICAiYW1vdW50IjogImludGVnZXIsIHNtYWxsZXN0IGN1cnJlbmN5IHVuaXQgKGUuZy4gcGFpc2UpIiwKICAgICAgICAiY3VycmVuY3kiOiAiSVNPIGNvZGUsIGUuZy4gSU5SIiwKICAgICAgICAiZGVzY3JpcHRpb24iOiAidGV4dCBzaG93biB0byB0aGUgY3VzdG9tZXIiLAogICAgICAgICJjdXN0b21lciI6ICJvYmplY3Q6IHtuYW1lLCBlbWFpbCwgY29udGFjdH0iLAogICAgICAgICJub3RpZnkiOiAib2JqZWN0OiB7c21zOiBib29sLCBlbWFpbDogYm9vbH0iLAogICAgICAgICJyZW1pbmRlcl9lbmFibGUiOiAiYm9vbGVhbiIKICAgICAgfQogICAgfQogIH0sCiAgInJhdGVfbGltaXRzIjogbnVsbCwKICAiZXhhbXBsZXMiOiBudWxsLAogICJxdWlya3MiOiBbImFtb3VudCBpcyBpbiB0aGUgc21hbGxlc3QgY3VycmVuY3kgdW5pdCDigJQgbXVsdGlwbHkgcnVwZWVzIGJ5IDEwMCJdLAogICJkb2NzX3VybCI6ICJodHRwczovL2RvY3MuYWNtZXBheS5jb20iCn0K").decode()
 
-_DECOMPOSE_SYSTEM = __import__("base64").b64decode("WW91IGRlY2lkZSBpZiBhIHVzZXIgcmVxdWVzdCBuZWVkcyBNVUxUSVBMRSBzZXF1ZW50aWFsIEFQSSBjYWxscyB0byBjb21wbGV0ZS4KClJldHVybiBTVFJJQ1QgSlNPTiBvbmx5OgoKewogICJzdGVwcyI6IFsKICAgIHsic3RlcCI6ICI8bmF0dXJhbCBsYW5ndWFnZSBkZXNjcmlwdGlvbiBvZiB0aGlzIHNpbmdsZSBBUEkgY2FsbD4iLCAiZ29hbCI6ICI8d2hhdCB2YWx1ZSB0aGlzIHN0ZXAgcHJvZHVjZXMgZm9yIHRoZSBuZXh0PiJ9LAogICAgeyJzdGVwIjogIjxuZXh0IGNhbGwsIHJlZmVyZW5jaW5nIG91dHB1dCBvZiBwcmV2aW91cyBpZiBuZWVkZWQ+IiwgICJnb2FsIjogImZpbmFsIHJlc3VsdCJ9CiAgXQp9CgpSdWxlczoKLSBSZXR1cm4gZXhhY3RseSBPTkUgc3RlcCBpZiB0aGUgcmVxdWVzdCBjYW4gYmUgZG9uZSBpbiBhIHNpbmdsZSBBUEkgY2FsbC4KLSBSZXR1cm4gTVVMVElQTEUgc3RlcHMgT05MWSB3aGVuIGEgbGF0ZXIgY2FsbCBnZW51aW5lbHkgbmVlZHMgYSB2YWx1ZSBmcm9tIGFuIGVhcmxpZXIgcmVzcG9uc2UKICAoZS5nLiBtdXN0IGZldGNoIHVzZXIgaWQgYmVmb3JlIGNyZWF0aW5nIGEgcG9zdCB0aGF0IHJlcXVpcmVzIGF1dGhvciBpZCkuCi0gRWFjaCBzdGVwIG11c3QgYmUgYSBzZWxmLWNvbnRhaW5lZCBwbGFpbi1FbmdsaXNoIGluc3RydWN0aW9uIGZvciBwbGFuX2FjdGlvbi4KLSBUaGUgbGFzdCBzdGVwJ3MgImdvYWwiIGlzIHRoZSBmaW5hbCBhbnN3ZXIgdGhlIHVzZXIgd2FudHMuCi0gV2hlbiBhIGxhdGVyIHN0ZXAgbmVlZHMgYSB2YWx1ZSBmcm9tIGEgcHJldmlvdXMgcmVzcG9uc2UsIHNheSBzbyBleHBsaWNpdGx5OgogICJDcmVhdGUgYSBwb3N0IHVzaW5nIHRoZSAnc3ViJyBmaWVsZCByZXR1cm5lZCBieSB0aGUgcHJldmlvdXMgc3RlcCBhcyB0aGUgYXV0aG9yIGlkLiIKLSBORVZFUiBzcGxpdCBhIHJlcXVlc3QgaW50byBtdWx0aXBsZSBzdGVwcyB1bmxlc3Mgc3RyaWN0bHkgcmVxdWlyZWQg4oCUIHByZWZlciBvbmUgc3RlcC4KLSBNYXhpbXVtIDMgc3RlcHMuCg==").decode()
+_DECOMPOSE_SYSTEM = __import__("base64").b64decode("WW91IGRlY2lkZSBpZiBhIHVzZXIgcmVxdWVzdCBuZWVkcyBNVUxUSVBMRSBzZXF1ZW50aWFsIEFQSSBjYWxscyB0byBjb21wbGV0ZS4KClJldHVybiBTVFJJQ1QgSlNPTiBvbmx5OgoKewogICJzdGVwcyI6IFsKICAgIHsic3RlcCI6ICI8bmF0dXJhbCBsYW5ndWFnZSBkZXNjcmlwdGlvbiBvZiB0aGlzIHNpbmdsZSBBUEkgY2FsbD4iLCAiZ29hbCI6ICI8d2hhdCB2YWx1ZSB0aGlzIHN0ZXAgcHJvZHVjZXMgZm9yIHRoZSBuZXh0PiJ9LAogICAgeyJzdGVwIjogIjxuZXh0IGNhbGwsIHJlZmVyZW5jaW5nIG91dHB1dCBvZiBwcmV2aW91cyBpZiBuZWVkZWQ+IiwgICJnb2FsIjogImZpbmFsIHJlc3VsdCJ9CiAgXQp9CgpSdWxlczoKLSBSZXR1cm4gZXhhY3RseSBPTkUgc3RlcCBpZiB0aGUgcmVxdWVzdCBjYW4gYmUgZG9uZSBpbiBhIHNpbmdsZSBBUEkgY2FsbC4KLSBSZXR1cm4gTVVMVElQTEUgc3RlcHMgT05MWSB3aGVuIGEgbGF0ZXIgY2FsbCBDQU5OT1QgcHJvY2VlZCB3aXRob3V0IGEgdmFsdWUKICBmcm9tIGFuIGVhcmxpZXIgQVBJIHJlc3BvbnNlIChlLmcuIGFuIElEIHRoYXQgaXMgdW5rbm93biBhbmQgbXVzdCBiZSBmZXRjaGVkKS4KLSBJZiB0aGUgdXNlciBhbHJlYWR5IHByb3ZpZGVkIHRoZSBjb250ZW50L3RleHQvbWVzc2FnZSB0byBwb3N0LCB0aGF0IGlzIE5PVCBhCiAgcmVhc29uIHRvIGFkZCBleHRyYSBzdGVwcyDigJQgb25lIHN0ZXAgaXMgZW5vdWdoIHRvIGNyZWF0ZS9zZW5kIGl0IGRpcmVjdGx5LgotIElmIHRoZSB1c2VyIGFscmVhZHkgcHJvdmlkZWQgYW4gYXV0aG9yIGlkLCBVUk4sIG9yIGFueSByZXF1aXJlZCBpZGVudGlmaWVyLAogIGRvIE5PVCBhZGQgYSBzdGVwIHRvIGZldGNoIGl0IOKAlCB1c2Ugd2hhdCB3YXMgZ2l2ZW4sIG9uZSBzdGVwIG9ubHkuCi0gRWFjaCBzdGVwIG11c3QgYmUgYSBzZWxmLWNvbnRhaW5lZCBwbGFpbi1FbmdsaXNoIGluc3RydWN0aW9uIGZvciBwbGFuX2FjdGlvbi4KLSBORVZFUiBzcGxpdCBhIHJlcXVlc3QgaW50byBtdWx0aXBsZSBzdGVwcyB1bmxlc3Mgc3RyaWN0bHkgcmVxdWlyZWQg4oCUIHByZWZlciBvbmUgc3RlcC4KLSBNYXhpbXVtIDMgc3RlcHMuCg==").decode()
 
 _EXTRACT_CONTENT_SYSTEM = __import__("base64").b64decode("RXh0cmFjdCB0aGUgdmVyYmF0aW0gY29udGVudCB0aGUgdXNlciB3YW50cyB0byBwb3N0LCBzZW5kLCBvciBwdWJsaXNoLgpSZXR1cm4gT05MWSB0aGUgY29udGVudCB0ZXh0IOKAlCBubyBleHBsYW5hdGlvbiwgbm8gcXVvdGVzLCBubyBKU09OLgpJZiB0aGUgcHJvbXB0IGNvbnRhaW5zIG5vIHNwZWNpZmljIGNvbnRlbnQgdG8gcG9zdC9zZW5kLCByZXR1cm4gZXhhY3RseTogTk9ORQ==").decode()
 
@@ -3817,21 +3817,21 @@ class DynamicAgentService:
             if context
             else ""
         )
-        # Use a cheap LLM call to extract verbatim content from the prompt.
-        # This handles any phrasing ("saying", "daal yeh", "text:", quotes, etc.)
-        # without brittle regex patterns. Result is injected explicitly so the
-        # planning LLM never has to guess what text to put in content fields.
-        _content_hint = ""
-        try:
-            _raw = self._call_llm_raw_text(
-                _EXTRACT_CONTENT_SYSTEM, prompt,
-                num_predict=512, num_ctx=2048,
-                db=db, user_id=user_id,
-            )
-            if _raw and _raw.strip() not in ("NONE", "", "null"):
-                _content_hint = _raw.strip()
-        except Exception:
-            pass
+        # Pull verbatim content from context (_user_content set by run_turn from
+        # the original prompt before decomposition) or extract directly when
+        # plan_action is called in single-step mode.
+        _content_hint = (context or {}).get("_user_content", "")
+        if not _content_hint:
+            try:
+                _raw = self._call_llm_raw_text(
+                    _EXTRACT_CONTENT_SYSTEM, prompt,
+                    num_predict=512, num_ctx=2048,
+                    db=db, user_id=user_id,
+                )
+                if _raw and _raw.strip() not in ("NONE", "", "null"):
+                    _content_hint = _raw.strip()
+            except Exception:
+                pass
         content_block = (
             f"\n\nVERBATIM CONTENT (copy this EXACTLY into the text/message/"
             f"body/content field — never replace with a placeholder):\n{_content_hint}"
@@ -4530,6 +4530,21 @@ class DynamicAgentService:
 
         # ---- 4. decompose + plan (agent chaining)
         emit("planning_action", tool=tool.name)
+
+        # Extract verbatim content from original prompt BEFORE decomposition so
+        # it survives into chained steps (step descriptions don't carry content).
+        _original_content = ""
+        try:
+            _raw = self._call_llm_raw_text(
+                _EXTRACT_CONTENT_SYSTEM, prompt,
+                num_predict=512, num_ctx=2048,
+                db=db, user_id=user_id,
+            )
+            if _raw and _raw.strip() not in ("NONE", "", "null"):
+                _original_content = _raw.strip()
+        except Exception:
+            pass
+
         steps = self.decompose_into_steps(tool=tool, prompt=prompt, db=db, user_id=user_id)
 
         if len(steps) > 1:
@@ -4537,7 +4552,10 @@ class DynamicAgentService:
             # context to the next step's planner so values like user IDs are
             # automatically resolved without the user having to know them.
             emit("chaining_steps", count=len(steps), steps=[s["step"] for s in steps])
-            step_context: Dict[str, Any] = {}
+            # Seed context with original content so ALL steps can use it
+            step_context: Dict[str, Any] = (
+                {"_user_content": _original_content} if _original_content else {}
+            )
             last_http_status, last_response_body, last_error = None, None, None
             last_plan: Dict[str, Any] = {}
             for i, step_def in enumerate(steps):
