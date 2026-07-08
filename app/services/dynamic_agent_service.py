@@ -56,6 +56,8 @@ _DOCS_EXTRACT_SYSTEM = __import__("base64").b64decode("WW91IHJlYWQgcmF3IEFQSSBkb
 
 _DECOMPOSE_SYSTEM = __import__("base64").b64decode("WW91IGRlY2lkZSBpZiBhIHVzZXIgcmVxdWVzdCBuZWVkcyBNVUxUSVBMRSBzZXF1ZW50aWFsIEFQSSBjYWxscyB0byBjb21wbGV0ZS4KClJldHVybiBTVFJJQ1QgSlNPTiBvbmx5OgoKewogICJzdGVwcyI6IFsKICAgIHsic3RlcCI6ICI8bmF0dXJhbCBsYW5ndWFnZSBkZXNjcmlwdGlvbiBvZiB0aGlzIHNpbmdsZSBBUEkgY2FsbD4iLCAiZ29hbCI6ICI8d2hhdCB2YWx1ZSB0aGlzIHN0ZXAgcHJvZHVjZXMgZm9yIHRoZSBuZXh0PiJ9LAogICAgeyJzdGVwIjogIjxuZXh0IGNhbGwsIHJlZmVyZW5jaW5nIG91dHB1dCBvZiBwcmV2aW91cyBpZiBuZWVkZWQ+IiwgICJnb2FsIjogImZpbmFsIHJlc3VsdCJ9CiAgXQp9CgpSdWxlczoKLSBSZXR1cm4gZXhhY3RseSBPTkUgc3RlcCBpZiB0aGUgcmVxdWVzdCBjYW4gYmUgZG9uZSBpbiBhIHNpbmdsZSBBUEkgY2FsbC4KLSBSZXR1cm4gTVVMVElQTEUgc3RlcHMgT05MWSB3aGVuIGEgbGF0ZXIgY2FsbCBnZW51aW5lbHkgbmVlZHMgYSB2YWx1ZSBmcm9tIGFuIGVhcmxpZXIgcmVzcG9uc2UKICAoZS5nLiBtdXN0IGZldGNoIHVzZXIgaWQgYmVmb3JlIGNyZWF0aW5nIGEgcG9zdCB0aGF0IHJlcXVpcmVzIGF1dGhvciBpZCkuCi0gRWFjaCBzdGVwIG11c3QgYmUgYSBzZWxmLWNvbnRhaW5lZCBwbGFpbi1FbmdsaXNoIGluc3RydWN0aW9uIGZvciBwbGFuX2FjdGlvbi4KLSBUaGUgbGFzdCBzdGVwJ3MgImdvYWwiIGlzIHRoZSBmaW5hbCBhbnN3ZXIgdGhlIHVzZXIgd2FudHMuCi0gV2hlbiBhIGxhdGVyIHN0ZXAgbmVlZHMgYSB2YWx1ZSBmcm9tIGEgcHJldmlvdXMgcmVzcG9uc2UsIHNheSBzbyBleHBsaWNpdGx5OgogICJDcmVhdGUgYSBwb3N0IHVzaW5nIHRoZSAnc3ViJyBmaWVsZCByZXR1cm5lZCBieSB0aGUgcHJldmlvdXMgc3RlcCBhcyB0aGUgYXV0aG9yIGlkLiIKLSBORVZFUiBzcGxpdCBhIHJlcXVlc3QgaW50byBtdWx0aXBsZSBzdGVwcyB1bmxlc3Mgc3RyaWN0bHkgcmVxdWlyZWQg4oCUIHByZWZlciBvbmUgc3RlcC4KLSBNYXhpbXVtIDMgc3RlcHMuCg==").decode()
 
+_EXTRACT_CONTENT_SYSTEM = __import__("base64").b64decode("RXh0cmFjdCB0aGUgdmVyYmF0aW0gY29udGVudCB0aGUgdXNlciB3YW50cyB0byBwb3N0LCBzZW5kLCBvciBwdWJsaXNoLgpSZXR1cm4gT05MWSB0aGUgY29udGVudCB0ZXh0IOKAlCBubyBleHBsYW5hdGlvbiwgbm8gcXVvdGVzLCBubyBKU09OLgpJZiB0aGUgcHJvbXB0IGNvbnRhaW5zIG5vIHNwZWNpZmljIGNvbnRlbnQgdG8gcG9zdC9zZW5kLCByZXR1cm4gZXhhY3RseTogTk9ORQ==").decode()
+
 _ACTION_PLAN_SYSTEM = __import__("base64").b64decode("WW91IHRyYW5zbGF0ZSBhIG5hdHVyYWwtbGFuZ3VhZ2UgaW5zdHJ1Y3Rpb24gaW50bwpPTkUgSFRUUCBjYWxsIGFnYWluc3QgdGhlIGNvbm5lY3RlZCBwcm92aWRlci4KCllvdSByZWNlaXZlOgogIC0gdG9vbDogICAgICB3aGljaCBwcm92aWRlciBpcyBjb25uZWN0ZWQKICAtIGJhc2VfdXJsOiAgdGhlIHByb3ZpZGVyJ3MgQVBJIGhvc3QKICAtIGVuZHBvaW50czoga25vd24gdmVyYnMgeW91IGNhbiBwaWNrIGZyb20gKGRvIHByZWZlciB0aGVzZSBvdmVyIGludmVudGluZykKICAtIHByb21wdDogICAgd2hhdCB0aGUgdXNlciB3YW50cyB0byBkbwoKUmVzcG9uZCB3aXRoIFNUUklDVCBKU09OIG9ubHk6Cgp7CiAgIm1ldGhvZCI6ICAgIkdFVCIgfCAiUE9TVCIgfCAiUFVUIiB8ICJQQVRDSCIgfCAiREVMRVRFIiwKICAiZW5kcG9pbnQiOiAiL3BhdGgvdW5kZXIvYmFzZV91cmwiLAogICJwYXJhbXMiOiAgIG51bGwgfCB7IOKApiB9LAogICJib2R5IjogICAgIG51bGwgfCB7IOKApiB9LAogICJzdW1tYXJ5IjogICI8b25lIHNob3J0IHNlbnRlbmNlIOKAlCB3aGF0IHRoaXMgY2FsbCB3aWxsIGRvPiIKfQoKUnVsZXM6Ci0gImVuZHBvaW50IiBNVVNUIHN0YXJ0IHdpdGggIi8iIOKAlCBuZXZlciB0aGUgZnVsbCBVUkwuCi0gUHJlZmVyIGEgdmVyYiBmcm9tIGBlbmRwb2ludHNgIHdoZW4gaXQgZml0czsgb25seSBpbnZlbnQgYSBuZXcgcGF0aCBpZgogIHRoZSB1c2VyIHdhbnRzIHNvbWV0aGluZyBub3QgbGlzdGVkLgotIERlZmF1bHQgdG8gR0VUIHVubGVzcyB0aGUgdXNlciBjbGVhcmx5IGFza2VkIHRvIGNyZWF0ZSAvIHNlbmQgLyB1cGRhdGUgLwogIGRlbGV0ZSBzb21ldGhpbmcuCi0gYHBhcmFtc2AgaXMgZm9yIHF1ZXJ5LXN0cmluZyBhcmdzIChHRVQpOyBgYm9keWAgaXMgZm9yIEpTT04gYm9kaWVzCiAgKFBPU1QvUFVUL1BBVENIKS4gTmV2ZXIgcHV0IGJvZHkgZmllbGRzIHVuZGVyIGBwYXJhbXNgLgotIFVzZSBPTkxZIHRoZSBmaWVsZHMgbGlzdGVkIGluIHRoZSBjaG9zZW4gZW5kcG9pbnQncyBkb2N1bWVudGVkIGBib2R5YCAvCiAgYHBhcmFtc2Agc2NoZW1hLiBORVZFUiBhZGQgZmllbGRzIHRoYXQgYXJlbid0IGluIHRoYXQgc2NoZW1hIOKAlCBtYW55IEFQSXMKICAocGF5bWVudCBnYXRld2F5cyBlc3BlY2lhbGx5KSByZWplY3QgdW5rbm93bi9leHRyYSBmaWVsZHMgd2l0aCBhIGhhcmQgZXJyb3IuCi0gT21pdCBvcHRpb25hbCBmaWVsZHMgeW91IGhhdmUgbm8gcmVhbCB2YWx1ZSBmb3IuIERvbid0IHBhZCB0aGUgYm9keSB3aXRoCiAgZW1wdHksIHBsYWNlaG9sZGVyLCBvciBndWVzc2VkIHZhbHVlcy4KLSBOZXZlciBpbnZlbnQgb3duZXIvcmVwby9jaGFubmVsIGlkcyB0aGUgdXNlciBkaWRuJ3Qgc3VwcGx5IOKAlCBsZWF2ZSB0aGUKICBwYXRoIHBsYWNlaG9sZGVyIGluIGFuZCBzZXQgZW5kcG9pbnQ9bnVsbCB3aXRoIGFuIGV4cGxhbmF0aW9uIGluIHN1bW1hcnkKICBpZiBhIHJlcXVpcmVkIGlkIGlzIG1pc3NpbmcuCi0gQ09OVEVOVCBGSUVMRFMgKG1lc3NhZ2UgdGV4dCwgcG9zdCBib2R5LCBjb21tZW50LCB0aXRsZSwgZGVzY3JpcHRpb24pOgogIGV4dHJhY3QgdGhlIEVYQUNUIHRleHQgdGhlIHVzZXIgd3JvdGUgaW4gdGhlaXIgcHJvbXB0IOKAlCBuZXZlciBzdWJzdGl0dXRlCiAgZ2VuZXJpYyBwbGFjZWhvbGRlcnMgbGlrZSAiSGVsbG8gd29ybGQiLCAidGVzdCIsICJ5b3VyIHRleHQgaGVyZSIsIG9yCiAgYW55dGhpbmcgZnJvbSB0aGUgZW5kcG9pbnQgc2NoZW1hIGV4YW1wbGVzLiBUaGUgdXNlcidzIHdvcmRzIGFyZSB0aGUgdmFsdWUuCg==").decode()
 
 _SUMMARY_EN_SYSTEM = (
@@ -1383,6 +1385,54 @@ class DynamicAgentService:
         if getattr(settings, "OPENAI_API_KEY", None):
             return "openai", settings.OPENAI_MODEL, settings.OPENAI_API_KEY
         return None
+
+    def _call_llm_raw_text(
+        self,
+        system: str,
+        user: str,
+        *,
+        num_predict: int = 512,
+        num_ctx: int = 2048,
+        db: Optional[Session] = None,
+        user_id: Optional[int] = None,
+    ) -> str:
+        """Call the LLM and return raw text response (not parsed as JSON).
+        Used for simple extraction tasks like pulling verbatim content from a prompt."""
+        provider = self._get_paid_provider(db=db, user_id=user_id)
+        if provider:
+            prov, model, key = provider
+            if prov == "anthropic":
+                import anthropic as _anthropic
+                client = _anthropic.Anthropic(api_key=key)
+                msg = client.messages.create(
+                    model=model, max_tokens=num_predict,
+                    system=system,
+                    messages=[{"role": "user", "content": user}],
+                )
+                return msg.content[0].text if msg.content else ""
+            elif prov == "openai":
+                import openai as _openai
+                client = _openai.OpenAI(api_key=key)
+                resp = client.chat.completions.create(
+                    model=model, max_tokens=num_predict,
+                    messages=[{"role": "system", "content": system},
+                               {"role": "user", "content": user}],
+                )
+                return resp.choices[0].message.content or ""
+        # Fallback: local Ollama
+        resp = requests.post(
+            f"{settings.OLLAMA_BASE_URL}/api/chat",
+            json={
+                "model": settings.OLLAMA_MODEL,
+                "messages": [{"role": "system", "content": system},
+                              {"role": "user", "content": user}],
+                "stream": False,
+                "options": {"num_predict": num_predict, "num_ctx": num_ctx},
+            },
+            timeout=60,
+        )
+        resp.raise_for_status()
+        return resp.json().get("message", {}).get("content", "")
 
     def _extract_json_smart(
         self,
@@ -3767,12 +3817,34 @@ class DynamicAgentService:
             if context
             else ""
         )
+        # Use a cheap LLM call to extract verbatim content from the prompt.
+        # This handles any phrasing ("saying", "daal yeh", "text:", quotes, etc.)
+        # without brittle regex patterns. Result is injected explicitly so the
+        # planning LLM never has to guess what text to put in content fields.
+        _content_hint = ""
+        try:
+            _raw = self._call_llm_raw_text(
+                _EXTRACT_CONTENT_SYSTEM, prompt,
+                num_predict=512, num_ctx=2048,
+                db=db, user_id=user_id,
+            )
+            if _raw and _raw.strip() not in ("NONE", "", "null"):
+                _content_hint = _raw.strip()
+        except Exception:
+            pass
+        content_block = (
+            f"\n\nVERBATIM CONTENT (copy this EXACTLY into the text/message/"
+            f"body/content field — never replace with a placeholder):\n{_content_hint}"
+            if _content_hint
+            else ""
+        )
         user_msg = (
             f"tool: {tool.name}\n"
             f"base_url: {tool.base_url}\n"
             f"endpoints: {endpoints_summary}"
             f"{quirks_block}"
-            f"{context_block}\n\n"
+            f"{context_block}"
+            f"{content_block}\n\n"
             f"prompt: {prompt!r}\n\n"
             "Return the JSON envelope described in the system prompt."
         )
